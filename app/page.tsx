@@ -2,6 +2,34 @@
 
 import { useState, useRef, useEffect } from 'react';
 
+// Import MediaPipe types
+type MediaPipeLandmark = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+type MediaPipeResults = {
+  multiFaceLandmarks?: MediaPipeLandmark[][];
+};
+
+type FaceMeshInstance = {
+  setOptions: (options: {
+    maxNumFaces: number;
+    refineLandmarks: boolean;
+    minDetectionConfidence: number;
+    minTrackingConfidence: number;
+  }) => void;
+  onResults: (callback: (results: MediaPipeResults) => void) => void;
+  send: (data: { image: HTMLVideoElement }) => Promise<void>;
+  close?: () => void;
+};
+
+type CameraInstance = {
+  start: () => void;
+  stop: () => void;
+};
+
 const lipstickColors = [
   '#FF6B9D', '#FF1744', '#C2185B', '#8E24AA', '#673AB7',
   '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50',
@@ -31,15 +59,15 @@ export default function LipFilterApp() {
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const faceMeshRef = useRef<any>(null);
-  const cameraRef = useRef<any>(null);
+  const faceMeshRef = useRef<FaceMeshInstance | null>(null);
+  const cameraRef = useRef<CameraInstance | null>(null);
 
   // Load MediaPipe scripts
   useEffect(() => {
     const loadScripts = () => {
       return new Promise<void>((resolve, reject) => {
         // Check if already loaded
-        if (typeof window !== 'undefined' && (window as any).FaceMesh) {
+        if (typeof window !== 'undefined' && (window as Window & typeof globalThis).FaceMesh) {
           resolve();
           return;
         }
@@ -109,7 +137,7 @@ export default function LipFilterApp() {
   };
 
   // New renderer using even-odd fill and smoothing
-  const renderLips = (landmarks: any, width: number, height: number) => {
+  const renderLips = (landmarks: MediaPipeLandmark[], width: number, height: number) => {
     if (!landmarks || !canvasRef.current) return;
     
     const canvas = canvasRef.current;
@@ -153,12 +181,14 @@ export default function LipFilterApp() {
   };
 
   const createFaceMesh = () => {
-    if (typeof window === 'undefined' || !(window as any).FaceMesh) return;
+    if (typeof window === 'undefined' || !(window as Window & typeof globalThis).FaceMesh) return;
 
-    const FaceMesh = (window as any).FaceMesh;
+    const FaceMesh = (window as Window & typeof globalThis).FaceMesh;
     faceMeshRef.current = new FaceMesh({
       locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
+
+    if (!faceMeshRef.current) return;
 
     faceMeshRef.current.setOptions({
       maxNumFaces: 1,
@@ -167,7 +197,7 @@ export default function LipFilterApp() {
       minTrackingConfidence: 0.5,
     });
 
-    faceMeshRef.current.onResults((results: any) => {
+    faceMeshRef.current.onResults((results: MediaPipeResults) => {
       resizeCanvas();
       if (!canvasRef.current || !videoRef.current) return;
       
@@ -220,8 +250,8 @@ export default function LipFilterApp() {
         }
 
         // Create camera helper
-        if (typeof window !== 'undefined' && (window as any).Camera) {
-          const Camera = (window as any).Camera;
+        if (typeof window !== 'undefined' && (window as Window & typeof globalThis).Camera) {
+          const Camera = (window as Window & typeof globalThis).Camera;
           cameraRef.current = new Camera(videoRef.current, {
             onFrame: async () => {
               if (faceMeshRef.current && videoRef.current) {
@@ -231,15 +261,18 @@ export default function LipFilterApp() {
             width: 1280,
             height: 720,
           });
-          cameraRef.current.start();
+          if (cameraRef.current) {
+            cameraRef.current.start();
+          }
         }
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
       }
-    } catch (err: any) {
-      console.error('Camera error:', err);
-      setMessage('Camera error: ' + err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Camera error:', error);
+      setMessage('Camera error: ' + error.message);
       setIsRunning(false);
     }
   };
@@ -265,9 +298,10 @@ export default function LipFilterApp() {
 
       setIsRunning(false);
       window.removeEventListener('resize', resizeCanvas);
-    } catch (err: any) {
-      console.error('Stop error:', err);
-      setMessage('Stop error: ' + err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Stop error:', error);
+      setMessage('Stop error: ' + error.message);
     }
   };
 
