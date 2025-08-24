@@ -37,8 +37,8 @@ interface LipFilterProps {
   onBack: () => void;
 }
 
+// Only the 8 Pantone colors from the requirements
 const lipstickColors = [
-  // Pantone Colors from the requirements
   '#BB5F43', // 01 Barely Peachy
   '#BC494F', // 02 Coral Courage
   '#AA3E4C', // 03 Charming Pink
@@ -46,11 +46,12 @@ const lipstickColors = [
   '#A4343A', // 05 Fiery Crimson
   '#8B4513', // 06 Mahogany Mission
   '#A0522D', // 07 Rosewood Blaze
-  '#A3473D', // 08 Brick Era
-  // Additional colors for variety
-  '#FF6B9D', '#FF1744', '#C2185B', '#8E24AA', '#673AB7',
-  '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50',
-  '#FF9800', '#FF5722', '#795548', '#9E9E9E', '#607D8B'
+  '#A3473D'  // 08 Brick Era
+];
+
+const pantoneNames = [
+  'Barely Peachy', 'Coral Courage', 'Charming Pink', 'Mauve Ambition',
+  'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era'
 ];
 
 // MediaPipe FaceMesh mouth landmark sets (full rings, correct order)
@@ -65,11 +66,8 @@ const MOUTH_INNER = [
 ];
 
 export default function LipFilter({ colorRecommendation, onCapture, onBack }: LipFilterProps) {
-  const [selectedColor, setSelectedColor] = useState(colorRecommendation?.color || '#FF1744');
+  const [selectedColor, setSelectedColor] = useState(colorRecommendation?.color || '#BB5F43');
   const [isRunning, setIsRunning] = useState(false);
-  const [opacity, setOpacity] = useState(70);
-  const [hue, setHue] = useState(0);
-  const [saturation, setSaturation] = useState(85);
   const [message, setMessage] = useState('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -175,9 +173,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     const outerPts = MOUTH_OUTER.map(toXY);
     const innerPts = MOUTH_INNER.map(toXY);
 
-    const alpha = opacity / 100;
-    const hslHue = hue;
-    const sat = saturation;
+    // Fixed opacity and use selected color directly
+    const alpha = 0.7; // Fixed opacity at 70%
 
     const outerPath = smoothClosedPath(outerPts);
     const innerPath = smoothClosedPath(innerPts);
@@ -185,17 +182,17 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Fill outer minus inner using even-odd rule
-    ctx.fillStyle = `hsla(${hslHue}, ${sat}%, 45%, ${alpha})`;
+    // Fill outer minus inner using even-odd rule with selected color
+    ctx.fillStyle = selectedColor + Math.round(alpha * 255).toString(16).padStart(2, '0');
     const combined = new Path2D();
     combined.addPath(outerPath);
     combined.addPath(innerPath);
     ctx.fill(combined, 'evenodd');
 
-    // Soft edge
+    // Soft edge with slightly darker version of selected color
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = `hsla(${hslHue}, ${sat}%, 35%, ${Math.max(0.15, alpha * 0.4)})`;
+    ctx.strokeStyle = selectedColor + '40'; // 25% opacity for stroke
     ctx.lineWidth = 1.25;
     ctx.stroke(outerPath);
 
@@ -352,46 +349,15 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     onCapture(imageData);
   };
 
-  // Convert hex color to HSL for better control
-  const hexToHsl = (hex: string) => {
-    const r = parseInt(hex.slice(1, 3), 16) / 255;
-    const g = parseInt(hex.slice(3, 5), 16) / 255;
-    const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const diff = max - min;
-    const sum = max + min;
-    const l = sum / 2;
-
-    let h = 0;
-    let s = 0;
-
-    if (diff !== 0) {
-      s = l > 0.5 ? diff / (2 - sum) : diff / sum;
-      
-      switch (max) {
-        case r:
-          h = ((g - b) / diff + (g < b ? 6 : 0)) / 6;
-          break;
-        case g:
-          h = ((b - r) / diff + 2) / 6;
-          break;
-        case b:
-          h = ((r - g) / diff + 4) / 6;
-          break;
-      }
+  const handleColorSelect = (color: string) => {
+    setSelectedColor(color);
+    // Force a re-render of the lips with the new color
+    if (videoRef.current && canvasRef.current) {
+      const width = canvasRef.current.width / (window.devicePixelRatio || 1);
+      const height = canvasRef.current.height / (window.devicePixelRatio || 1);
+      // This will trigger the next frame to render with the new color
     }
-
-    return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
   };
-
-  // Update HSL when color changes
-  useEffect(() => {
-    const [h, s] = hexToHsl(selectedColor);
-    setHue(h);
-    setSaturation(s);
-  }, [selectedColor]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center justify-center p-4">
@@ -440,46 +406,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
           </button>
         </div>
 
-        {/* Sliders */}
-        <div className="flex flex-wrap items-center justify-center gap-6 mb-6">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Opacity</label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={opacity}
-              onChange={(e) => setOpacity(parseInt(e.target.value))}
-              className="w-24 accent-pink-500"
-            />
-            <span className="text-sm w-8">{opacity}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Hue</label>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              value={hue}
-              onChange={(e) => setHue(parseInt(e.target.value))}
-              className="w-24 accent-pink-500"
-            />
-            <span className="text-sm w-8">{hue}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Saturation</label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={saturation}
-              onChange={(e) => setSaturation(parseInt(e.target.value))}
-              className="w-24 accent-pink-500"
-            />
-            <span className="text-sm w-8">{saturation}</span>
-          </div>
-        </div>
-
         {/* Camera and Canvas Container */}
         <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl mb-6">
           <video
@@ -505,41 +431,38 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         {/* Color Selector */}
         <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
           <h3 className="text-xl font-semibold mb-4">Choose Lipstick Color</h3>
-          <div className="grid grid-cols-10 gap-3 mb-4">
-            {lipstickColors.map((color, index) => {
-              const pantoneNames = [
-                'Barely Peachy', 'Coral Courage', 'Charming Pink', 'Mauve Ambition',
-                'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era'
-              ];
-              const colorName = index < 8 ? pantoneNames[index] : `Color ${index + 1}`;
-              
-              return (
-                <button
-                  key={index}
-                  onClick={() => setSelectedColor(color)}
-                  className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 relative group ${
-                    selectedColor === color
-                      ? 'border-white scale-110 shadow-lg'
-                      : 'border-gray-600'
-                  }`}
-                  style={{ backgroundColor: color }}
-                  title={colorName}
-                >
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                    {colorName}
-                  </div>
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-8 gap-3 mb-4">
+            {lipstickColors.map((color, index) => (
+              <button
+                key={index}
+                onClick={() => handleColorSelect(color)}
+                className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 relative group ${
+                  selectedColor === color
+                    ? 'border-white scale-110 shadow-lg'
+                    : 'border-gray-600'
+                }`}
+                style={{ backgroundColor: color }}
+                title={pantoneNames[index]}
+              >
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                  {pantoneNames[index]}
+                </div>
+              </button>
+            ))}
           </div>
           
           <div className="flex items-center justify-between">
             <span className="text-gray-300">Selected Color:</span>
-            <div 
-              className="w-8 h-8 rounded-full border-2 border-gray-600"
-              style={{ backgroundColor: selectedColor }}
-            ></div>
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-8 h-8 rounded-full border-2 border-gray-600"
+                style={{ backgroundColor: selectedColor }}
+              ></div>
+              <span className="text-gray-300 text-sm">
+                {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
+              </span>
+            </div>
           </div>
         </div>
 
