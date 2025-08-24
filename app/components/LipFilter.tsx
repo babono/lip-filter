@@ -38,10 +38,19 @@ interface LipFilterProps {
 }
 
 const lipstickColors = [
+  // Pantone Colors from the requirements
+  '#BB5F43', // 01 Barely Peachy
+  '#BC494F', // 02 Coral Courage
+  '#AA3E4C', // 03 Charming Pink
+  '#B04A5A', // 04 Mauve Ambition
+  '#A4343A', // 05 Fiery Crimson
+  '#8B4513', // 06 Mahogany Mission
+  '#A0522D', // 07 Rosewood Blaze
+  '#A3473D', // 08 Brick Era
+  // Additional colors for variety
   '#FF6B9D', '#FF1744', '#C2185B', '#8E24AA', '#673AB7',
   '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50',
-  '#FF9800', '#FF5722', '#795548', '#9E9E9E', '#607D8B',
-  '#F44336', '#E91E63', '#9C27B0', '#6A1B9A', '#4527A0'
+  '#FF9800', '#FF5722', '#795548', '#9E9E9E', '#607D8B'
 ];
 
 // MediaPipe FaceMesh mouth landmark sets (full rings, correct order)
@@ -497,18 +506,32 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
           <h3 className="text-xl font-semibold mb-4">Choose Lipstick Color</h3>
           <div className="grid grid-cols-10 gap-3 mb-4">
-            {lipstickColors.map((color, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedColor(color)}
-                className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 ${
-                  selectedColor === color
-                    ? 'border-white scale-110 shadow-lg'
-                    : 'border-gray-600'
-                }`}
-                style={{ backgroundColor: color }}
-              />
-            ))}
+            {lipstickColors.map((color, index) => {
+              const pantoneNames = [
+                'Barely Peachy', 'Coral Courage', 'Charming Pink', 'Mauve Ambition',
+                'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era'
+              ];
+              const colorName = index < 8 ? pantoneNames[index] : `Color ${index + 1}`;
+              
+              return (
+                <button
+                  key={index}
+                  onClick={() => setSelectedColor(color)}
+                  className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 relative group ${
+                    selectedColor === color
+                      ? 'border-white scale-110 shadow-lg'
+                      : 'border-gray-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={colorName}
+                >
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                    {colorName}
+                  </div>
+                </button>
+              );
+            })}
           </div>
           
           <div className="flex items-center justify-between">

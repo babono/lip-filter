@@ -10,10 +10,10 @@ A modern web application that helps users find their perfect lipstick shade thro
 - Feature highlights showcasing the app's capabilities
 
 ### 🎯 **Personality Quiz**
-- Interactive 4-question personality assessment
-- Questions cover personality, skin tone, occasion, and style preferences
+- Interactive 8-question personality assessment
+- Questions cover workplace style, personality traits, skin tone, and preferences
 - Real-time progress tracking
-- Intelligent color recommendation algorithm
+- Pantone color recommendation algorithm with 8 curated shades
 
 ### 🎨 **Virtual Lip Filter**
 - AI-powered lip detection using MediaPipe FaceMesh
@@ -60,8 +60,8 @@ A modern web application that helps users find their perfect lipstick shade thro
 ## 📱 Usage Flow
 
 1. **Start**: Users land on the home screen with app introduction
-2. **Quiz**: Take a 4-question personality quiz to determine preferences
-3. **Recommendation**: Receive personalized lipstick color recommendations
+2. **Quiz**: Take an 8-question personality quiz covering workplace style and preferences
+3. **Recommendation**: Receive personalized Pantone lipstick color recommendations
 4. **Try-On**: Use the AI-powered virtual lip filter with the recommended color
 5. **Capture**: Take a photo with the applied lipstick
 6. **Share**: Download and share results on social media platforms
@@ -69,10 +69,24 @@ A modern web application that helps users find their perfect lipstick shade thro
 ## 🎨 Color Recommendation Algorithm
 
 The app uses a sophisticated algorithm that considers:
-- **Personality Type**: Bold, Romantic, Natural, Creative, Professional
-- **Skin Tone**: Fair, Medium, Olive, Deep
-- **Occasion**: Everyday, Work, Date Night, Party, Special
-- **Style Preference**: Matte, Glossy, Satin, Metallic
+- **Workplace Style**: Bold, Neutral, Soft
+- **Priority Approach**: Presentation-focused, Daily routine, Team collaboration
+- **Mistake Handling**: Direct resolution, Seeking opinions, Delayed action
+- **Lunch Preferences**: Spicy food, Quick sandwich, Homemade meals
+- **Leadership Style**: Strong and fiery, Social and mingling, Kind and thoughtful
+- **Skin Tone**: Warm, Neutral, Cool
+- **Accessory Preference**: Gold, Mixed metals, Silver
+- **Workspace Style**: Red heels & perfume, Coffee & mirror, Plushies & diffusers
+
+**8 Pantone Color Options:**
+- Barely Peachy (#BB5F43)
+- Coral Courage (#BC494F)
+- Charming Pink (#AA3E4C)
+- Mauve Ambition (#B04A5A)
+- Fiery Crimson (#A4343A)
+- Mahogany Mission (#8B4513)
+- Rosewood Blaze (#A0522D)
+- Brick Era (#A3473D)
 
 ## 🔧 Technical Features
 
