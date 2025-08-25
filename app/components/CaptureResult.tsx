@@ -181,7 +181,7 @@ export default function CaptureResult({
         <div className="mt-12 text-center">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">
-              What's Next? 🚀
+              What&apos;s Next? 🚀
             </h3>
             <div className="grid md:grid-cols-3 gap-6 text-sm">
               <div>
