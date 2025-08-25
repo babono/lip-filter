@@ -74,6 +74,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const faceMeshRef = useRef<FaceMeshInstance | null>(null);
   const cameraRef = useRef<CameraInstance | null>(null);
+  const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
 
   // Load MediaPipe scripts
   useEffect(() => {
@@ -106,6 +107,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   useEffect(() => {
     if (colorRecommendation?.color) {
       setSelectedColor(colorRecommendation.color);
+      currentColorRef.current = colorRecommendation.color;
     }
   }, [colorRecommendation]);
 
@@ -195,7 +197,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Fill outer minus inner using even-odd rule with selected color
-    ctx.fillStyle = selectedColor + Math.round(alpha * 255).toString(16).padStart(2, '0');
+    ctx.fillStyle = currentColorRef.current + Math.round(alpha * 255).toString(16).padStart(2, '0');
     const combined = new Path2D();
     combined.addPath(outerPath);
     combined.addPath(innerPath);
@@ -204,7 +206,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     // Soft edge with slightly darker version of selected color
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = selectedColor + '40'; // 25% opacity for stroke
+    ctx.strokeStyle = currentColorRef.current + '40'; // 25% opacity for stroke
     ctx.lineWidth = 1.25;
     ctx.stroke(outerPath);
 
@@ -363,11 +365,20 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
+    currentColorRef.current = color; // Update the ref immediately
+    
     // Force a re-render of the lips with the new color
     if (videoRef.current && canvasRef.current) {
-      const width = canvasRef.current.width / (window.devicePixelRatio || 1);
-      const height = canvasRef.current.height / (window.devicePixelRatio || 1);
-      // This will trigger the next frame to render with the new color
+      // Clear the canvas first
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+      
+      // Force MediaPipe to process the next frame with the new color
+      if (faceMeshRef.current && videoRef.current) {
+        faceMeshRef.current.send({ image: videoRef.current });
+      }
     }
   };
 
