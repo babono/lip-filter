@@ -109,6 +109,18 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     }
   }, [colorRecommendation]);
 
+  // Auto-start camera when component mounts
+  useEffect(() => {
+    const autoStartCamera = async () => {
+      // Wait a bit for MediaPipe scripts to load
+      setTimeout(() => {
+        startCamera();
+      }, 1000);
+    };
+
+    autoStartCamera();
+  }, []);
+
   const resizeCanvas = () => {
     if (!videoRef.current || !canvasRef.current) return;
     
@@ -360,22 +372,22 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-100 flex flex-col items-center justify-center p-4">
       <div className="max-w-4xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <button
             onClick={onBack}
-            className="absolute top-4 left-4 text-gray-400 hover:text-white transition-colors"
+            className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 transition-colors"
           >
             ← Back
           </button>
-          <h1 className="text-4xl font-bold text-center mb-4">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
             💄 Virtual Lip Filter
           </h1>
           {colorRecommendation && (
-            <div className="bg-white text-gray-800 p-4 rounded-lg mb-4">
-              <p className="text-lg font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
+            <div className="bg-white p-4 rounded-lg shadow-lg mb-4">
+              <p className="text-lg font-semibold text-gray-800">Your Recommended Color: {colorRecommendation.name}</p>
               <p className="text-sm text-gray-600">{colorRecommendation.description}</p>
             </div>
           )}
@@ -384,30 +396,23 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         {/* Controls */}
         <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
           <button
-            onClick={startCamera}
-            disabled={isRunning}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg font-semibold transition-colors"
-          >
-            Start Camera
-          </button>
-          <button
             onClick={stopCamera}
             disabled={!isRunning}
-            className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg font-semibold transition-colors"
+            className="px-6 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:opacity-50 rounded-lg font-semibold transition-colors text-white"
           >
-            Stop
+            Stop Camera
           </button>
           <button
             onClick={capturePhoto}
             disabled={!isRunning}
-            className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg font-semibold transition-colors"
+            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:bg-gray-400 disabled:opacity-50 rounded-lg font-semibold transition-colors text-white"
           >
             📸 Capture & Continue
           </button>
         </div>
 
         {/* Camera and Canvas Container */}
-        <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl mb-6">
+        <div className="relative bg-white rounded-xl overflow-hidden shadow-2xl mb-6 border-4 border-pink-100">
           <video
             ref={videoRef}
             autoPlay
@@ -423,14 +428,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
         {/* Status Message */}
         {message && (
-          <div className="text-center text-red-400 mb-4">
+          <div className="text-center text-red-500 mb-4 bg-red-50 p-3 rounded-lg">
             {message}
           </div>
         )}
 
         {/* Color Selector */}
-        <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
-          <h3 className="text-xl font-semibold mb-4">Choose Lipstick Color</h3>
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-100">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Choose Lipstick Color</h3>
           <div className="grid grid-cols-8 gap-3 mb-4">
             {lipstickColors.map((color, index) => (
               <button
@@ -438,14 +443,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                 onClick={() => handleColorSelect(color)}
                 className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 relative group ${
                   selectedColor === color
-                    ? 'border-white scale-110 shadow-lg'
-                    : 'border-gray-600'
+                    ? 'border-pink-400 scale-110 shadow-lg'
+                    : 'border-gray-300 hover:border-pink-200'
                 }`}
                 style={{ backgroundColor: color }}
                 title={pantoneNames[index]}
               >
                 {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                   {pantoneNames[index]}
                 </div>
               </button>
@@ -453,13 +458,13 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
           </div>
           
           <div className="flex items-center justify-between">
-            <span className="text-gray-300">Selected Color:</span>
+            <span className="text-gray-700 font-medium">Selected Color:</span>
             <div className="flex items-center gap-2">
               <div 
-                className="w-8 h-8 rounded-full border-2 border-gray-600"
+                className="w-8 h-8 rounded-full border-2 border-pink-300"
                 style={{ backgroundColor: selectedColor }}
               ></div>
-              <span className="text-gray-300 text-sm">
+              <span className="text-gray-700 text-sm font-medium">
                 {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
               </span>
             </div>
@@ -467,10 +472,10 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         </div>
 
         {/* Instructions */}
-        <div className="text-center mt-6 text-gray-400">
-          <p>Position your face in the camera view and the AI will automatically detect and apply lipstick!</p>
-          <p className="text-sm mt-2">
-            Tip: This requires HTTPS (or localhost) for the camera to work.
+        <div className="text-center mt-6 text-gray-600 bg-white p-4 rounded-lg shadow-sm">
+          <p className="font-medium">Position your face in the camera view and the AI will automatically detect and apply lipstick!</p>
+          <p className="text-sm mt-2 text-gray-500">
+            💡 Tip: This requires HTTPS (or localhost) for the camera to work.
           </p>
         </div>
       </div>
