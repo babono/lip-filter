@@ -383,111 +383,67 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="max-w-4xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <button
-            onClick={onBack}
-            className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            ← Back
-          </button>
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            💄 Virtual Lip Filter
-          </h1>
-          {colorRecommendation && (
-            <div className="bg-white p-4 rounded-lg shadow-lg mb-4">
-              <p className="text-lg font-semibold text-gray-800">Your Recommended Color: {colorRecommendation.name}</p>
-              <p className="text-sm text-gray-600">{colorRecommendation.description}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Controls */}
-        <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-          <button
-            onClick={stopCamera}
-            disabled={!isRunning}
-            className="px-6 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:opacity-50 rounded-lg font-semibold transition-colors text-white"
-          >
-            Stop Camera
-          </button>
-          <button
-            onClick={capturePhoto}
-            disabled={!isRunning}
-            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:bg-gray-400 disabled:opacity-50 rounded-lg font-semibold transition-colors text-white"
-          >
-            📸 Capture & Continue
-          </button>
-        </div>
-
-        {/* Camera and Canvas Container */}
-        <div className="relative bg-white rounded-xl overflow-hidden shadow-2xl mb-6 border-4 border-pink-100">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-auto transform scale-x-[-1]"
-          />
-          <canvas
-            ref={canvasRef}
-            className="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]"
-          />
-        </div>
-
-        {/* Status Message */}
-        {message && (
-          <div className="text-center text-red-500 mb-4 bg-red-50 p-3 rounded-lg">
-            {message}
+        <div className="retro-window">
+          <div className="retro-titlebar flex items-center justify-between">
+            <span>Virtual Lip Filter</span>
+            <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
-        )}
+          <div className="retro-content">
+            {colorRecommendation && (
+              <div className="retro-card p-4 mb-4">
+                <p className="font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
+                <p className="text-xs opacity-80">{colorRecommendation.description}</p>
+              </div>
+            )}
 
-        {/* Color Selector */}
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-100">
-          <h3 className="text-xl font-semibold mb-4 text-gray-800">Choose Lipstick Color</h3>
-          <div className="grid grid-cols-8 gap-3 mb-4">
-            {lipstickColors.map((color, index) => (
-              <button
-                key={index}
-                onClick={() => handleColorSelect(color)}
-                className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 relative group ${
-                  selectedColor === color
-                    ? 'border-pink-400 scale-110 shadow-lg'
-                    : 'border-gray-300 hover:border-pink-200'
-                }`}
-                style={{ backgroundColor: color }}
-                title={pantoneNames[index]}
-              >
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  {pantoneNames[index]}
+            {/* Controls */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
+              <button onClick={stopCamera} disabled={!isRunning} className="retro-btn text-sm disabled:opacity-50">Stop Camera</button>
+              <button onClick={capturePhoto} disabled={!isRunning} className="retro-btn retro-btn-primary text-sm disabled:opacity-50">📸 Capture & Continue</button>
+            </div>
+
+            {/* Camera */}
+            <div className="relative retro-card overflow-hidden mb-4">
+              <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto transform scale-x-[-1]" />
+              <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
+            </div>
+
+            {message && (
+              <div className="text-center text-red-600 mb-3 text-sm">{message}</div>
+            )}
+
+            {/* Swatches */}
+            <div className="retro-card p-4">
+              <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
+              <div className="grid grid-cols-8 gap-2 mb-3">
+                {lipstickColors.map((color, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleColorSelect(color)}
+                    className={`w-10 h-10 rounded-full retro-swatch transition-transform hover:scale-110 ${selectedColor === color ? 'ring-2 ring-pink-400' : ''}`}
+                    style={{ backgroundColor: color }}
+                    title={pantoneNames[index]}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Selected Color:</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
+                  <span className="text-xs">
+                    {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
+                  </span>
                 </div>
-              </button>
-            ))}
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Selected Color:</span>
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-8 h-8 rounded-full border-2 border-pink-300"
-                style={{ backgroundColor: selectedColor }}
-              ></div>
-              <span className="text-gray-700 text-sm font-medium">
-                {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
-              </span>
+              </div>
+            </div>
+
+            <div className="text-center mt-4 text-xs opacity-80">
+              <p>Position your face in the camera view and the AI will apply lipstick automatically.</p>
+              <p className="mt-1">Tip: HTTPS (or localhost) is required for camera access.</p>
             </div>
           </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="text-center mt-6 text-gray-600 bg-white p-4 rounded-lg shadow-sm">
-          <p className="font-medium">Position your face in the camera view and the AI will automatically detect and apply lipstick!</p>
-          <p className="text-sm mt-2 text-gray-500">
-            💡 Tip: This requires HTTPS (or localhost) for the camera to work.
-          </p>
         </div>
       </div>
     </div>

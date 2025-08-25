@@ -104,7 +104,7 @@ export default function LipFilterApp() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-100">
+    <div className="min-h-screen">
       {renderCurrentScreen()}
     </div>
   );

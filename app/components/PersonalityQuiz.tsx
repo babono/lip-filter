@@ -163,75 +163,67 @@ export default function PersonalityQuiz({ onComplete, onBack }: PersonalityQuizP
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <div className="max-w-2xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <button
-            onClick={onBack}
-            className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            ← Back
-          </button>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Personality Quiz</h1>
-          <p className="text-gray-600">Question {currentQuestion + 1} of {questions.length}</p>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
-          <div 
-            className="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-            {questions[currentQuestion].question}
-          </h2>
-          
-          <div className="grid gap-4">
-            {questions[currentQuestion].options.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => handleAnswer(questions[currentQuestion].id, option.value)}
-                className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-pink-300 hover:bg-pink-50 transition-all duration-200 text-left"
-              >
-                <span className="text-2xl mr-4">{option.emoji}</span>
-                <span className="text-lg font-medium text-gray-800">{option.label}</span>
-              </button>
-            ))}
+        <div className="retro-window">
+          <div className="retro-titlebar flex items-center justify-between">
+            <span>Sample Calendar - Month View</span>
+            <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
-        </div>
+          <div className="retro-content">
+            <div className="text-center mb-4">
+              <h1 className="text-xl font-bold mb-1" style={{ fontFamily: 'var(--font-retro), system-ui' }}>Personality Quiz</h1>
+              <p className="text-xs opacity-70">Question {currentQuestion + 1} of {questions.length}</p>
+            </div>
 
-        {/* Skip option for testing */}
-        <div className="text-center">
-          <button
-            onClick={() => {
-              const mockAnswers = {
-                outfitStyle: 'bold',
-                priorityList: 'presentation',
-                handleMistake: 'admit',
-                lunchChoice: 'spicy',
-                girlieBoss: 'strong',
-                skinTone: 'warm',
-                accessories: 'gold',
-                workspace: 'heels'
-              };
-              const mockResult: QuizResult = {
-                personality: 'bold',
-                skinTone: 'warm',
-                occasion: 'presentation',
-                style: 'gold'
-              };
-              const recommendation = getColorRecommendation(mockAnswers);
-              onComplete(mockResult, recommendation);
-            }}
-            className="text-gray-500 hover:text-gray-700 underline"
-          >
-            Skip to results (for testing)
-          </button>
+            {/* Progress */}
+            <div className="retro-progress mb-6"><span style={{ width: `${progress}%` }}></span></div>
+
+            {/* Question */}
+            <div className="retro-card p-5 mb-6">
+              <h2 className="font-semibold mb-4">{questions[currentQuestion].question}</h2>
+              <div className="grid gap-3">
+                {questions[currentQuestion].options.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleAnswer(questions[currentQuestion].id, option.value)}
+                    className="retro-btn text-left flex items-center gap-3"
+                  >
+                    <span className="text-xl">{option.emoji}</span>
+                    <span className="font-medium">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-center">
+              <button
+                onClick={() => {
+                  const mockAnswers = {
+                    outfitStyle: 'bold',
+                    priorityList: 'presentation',
+                    handleMistake: 'admit',
+                    lunchChoice: 'spicy',
+                    girlieBoss: 'strong',
+                    skinTone: 'warm',
+                    accessories: 'gold',
+                    workspace: 'heels'
+                  };
+                  const mockResult: QuizResult = {
+                    personality: 'bold',
+                    skinTone: 'warm',
+                    occasion: 'presentation',
+                    style: 'gold'
+                  };
+                  const recommendation = getColorRecommendation(mockAnswers);
+                  onComplete(mockResult, recommendation);
+                }}
+                className="text-xs opacity-70 underline"
+              >
+                Skip to results (for testing)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

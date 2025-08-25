@@ -71,134 +71,52 @@ export default function CaptureResult({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <div className="max-w-4xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            ✨ Your Perfect Look! ✨
-          </h1>
-          {colorRecommendation && (
-            <div className="bg-white p-4 rounded-lg shadow-lg mb-6 inline-block">
-              <p className="text-lg font-semibold text-gray-800">
-                Your Recommended Color: {colorRecommendation.name}
-              </p>
-              <p className="text-sm text-gray-600">{colorRecommendation.description}</p>
-            </div>
-          )}
-        </div>
+        <div className="retro-window">
+          <div className="retro-titlebar">Your Perfect Look!</div>
+          <div className="retro-content">
+            {colorRecommendation && (
+              <div className="retro-card p-4 mb-4 text-center inline-block">
+                <p className="font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
+                <p className="text-xs opacity-80">{colorRecommendation.description}</p>
+              </div>
+            )}
 
-        {/* Captured Image */}
-        <div className="bg-white rounded-xl shadow-2xl p-6 mb-8">
-          <div className="text-center mb-4">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your Result</h2>
-            <p className="text-gray-600">How amazing does this look on you? 💄</p>
-          </div>
-          
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <img
-                src={capturedImage}
-                alt="Your lipstick filter result"
-                className="max-w-full h-auto rounded-lg shadow-lg"
-                style={{ maxHeight: '500px' }}
-              />
-              <div className="absolute top-4 right-4 bg-white bg-opacity-90 rounded-full p-2">
-                <div 
-                  className="w-8 h-8 rounded-full border-2 border-gray-300"
-                  style={{ backgroundColor: colorRecommendation?.color || '#FF1744' }}
-                ></div>
+            {/* Image */}
+            <div className="retro-card p-4 mb-4">
+              <div className="text-center mb-3">
+                <h2 className="font-semibold mb-1">Your Result</h2>
+                <p className="text-xs opacity-80">How amazing does this look on you? 💄</p>
+              </div>
+              <div className="flex justify-center mb-4">
+                <div className="relative">
+                  <img src={capturedImage} alt="Your lipstick filter result" className="max-w-full h-auto rounded" style={{ maxHeight: '500px' }} />
+                  <div className="absolute top-2 right-2 bg-white/90 rounded-full p-1">
+                    <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: colorRecommendation?.color || '#FF1744' }}></div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-center">
+                <button onClick={downloadImage} className="retro-btn text-sm">📥 Download Image</button>
               </div>
             </div>
-          </div>
 
-          {/* Download Button */}
-          <div className="text-center mb-6">
-            <button
-              onClick={downloadImage}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-            >
-              📥 Download Image
-            </button>
-          </div>
-        </div>
-
-        {/* Social Media Sharing */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
-            Share Your Look! 💫
-          </h3>
-          
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <button
-              onClick={shareToInstagram}
-              className="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold"
-            >
-              <span className="text-2xl">📷</span>
-              Share to Instagram
-            </button>
-            
-            <button
-              onClick={shareToFacebook}
-              className="flex items-center justify-center gap-3 bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-all duration-200 font-semibold"
-            >
-              <span className="text-2xl">📘</span>
-              Share to Facebook
-            </button>
-            
-            <button
-              onClick={shareToTwitter}
-              className="flex items-center justify-center gap-3 bg-sky-500 text-white p-4 rounded-lg hover:bg-sky-600 transition-all duration-200 font-semibold"
-            >
-              <span className="text-2xl">🐦</span>
-              Share to Twitter
-            </button>
-          </div>
-
-          <div className="text-center text-gray-600 text-sm">
-            <p>💡 Tip: Download the image first, then share it to your favorite social media platform!</p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={onTryAgain}
-            className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-          >
-            🎨 Try Another Color
-          </button>
-          
-          <button
-            onClick={onNewQuiz}
-            className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all duration-200 font-semibold text-lg"
-          >
-            🎯 Take New Quiz
-          </button>
-        </div>
-
-        {/* Additional Features */}
-        <div className="mt-12 text-center">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">
-              What&apos;s Next? 🚀
-            </h3>
-            <div className="grid md:grid-cols-3 gap-6 text-sm">
-              <div>
-                <div className="text-2xl mb-2">🛒</div>
-                <h4 className="font-semibold text-gray-800 mb-2">Find Similar Products</h4>
-                <p className="text-gray-600">Discover real lipstick products in your perfect shade</p>
+            {/* Share */}
+            <div className="retro-card p-4 mb-4">
+              <h3 className="font-semibold text-center mb-3">Share Your Look! 💫</h3>
+              <div className="grid md:grid-cols-3 gap-3 mb-3">
+                <button onClick={shareToInstagram} className="retro-btn retro-btn-primary">📷 Instagram</button>
+                <button onClick={shareToFacebook} className="retro-btn">📘 Facebook</button>
+                <button onClick={shareToTwitter} className="retro-btn">🐦 Twitter</button>
               </div>
-              <div>
-                <div className="text-2xl mb-2">👥</div>
-                <h4 className="font-semibold text-gray-800 mb-2">Share with Friends</h4>
-                <p className="text-gray-600">Let your friends discover their perfect lipstick too</p>
-              </div>
-              <div>
-                <div className="text-2xl mb-2">💾</div>
-                <h4 className="font-semibold text-gray-800 mb-2">Save Your Results</h4>
-                <p className="text-gray-600">Keep track of your favorite colors and combinations</p>
-              </div>
+              <div className="text-center text-xs opacity-80">Tip: Download first, then share to your favorite platform.</div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button onClick={onTryAgain} className="retro-btn">🎨 Try Another Color</button>
+              <button onClick={onNewQuiz} className="retro-btn retro-btn-primary">🎯 Take New Quiz</button>
             </div>
           </div>
         </div>
