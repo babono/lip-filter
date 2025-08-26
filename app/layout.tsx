@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Press_Start_2P } from "next/font/google";
+import { Press_Start_2P, Inter } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,6 +19,11 @@ const retro = Press_Start_2P({
   variable: "--font-retro",
 });
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
 export const metadata: Metadata = {
   title: "Lipstick Shades Finder Online",
   description: "Virtual lipstick try-on app with various colors and textures",
@@ -32,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${retro.variable} antialiased bg-retro-desktop`}
+        className={`${inter.className} ${geistSans.variable} ${geistMono.variable} ${retro.variable} antialiased bg-retro-desktop`}
       >
         {children}
       </body>

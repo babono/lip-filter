@@ -9,7 +9,7 @@ export default function HomeScreen({ onStartQuiz }: HomeScreenProps) {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="max-w-4xl w-full">
         <div className="retro-window">
-          <div className="retro-titlebar">Apple in the Movies</div>
+          <div className="retro-titlebar">Hyperlast Glazed Lip Vinyl</div>
           <div className="retro-content text-center">
             {/* Hero */}
             <div className="mb-8">

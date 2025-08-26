@@ -110,7 +110,7 @@ export default function CaptureResult({
                     {/* Vertical band */}
                     <rect x={W-180-120} y={80} width="100" height={H-240-160} rx="20" fill="#C17B86" />
                     <g transform={`translate(${W-180-70}, ${H/2 - 40}) rotate(-90)`}>
-                      <text x="0" y="0" fontSize="44" fontWeight="700" textAnchor="middle" fill="#FFFFFF" fontFamily="ui-sans-serif, system-ui">
+                      <text x="0" y="0" fontSize="44" fontWeight="700" textAnchor="middle" fill="#FFFFFF">
                         HYPERLAST GLAZED LIP VINYL
                       </text>
                     </g>
@@ -131,23 +131,23 @@ export default function CaptureResult({
                     <rect x="60" y="160" width={W-180-220} height="560" rx="16" fill="none" stroke="#EBD3DA" strokeWidth="6" />
 
                     {/* Title */}
-                    <text x="60" y="770" fontSize="54" fontWeight="700" fill="#A35566" fontFamily="ui-sans-serif, system-ui">Unbreakable Glaze</text>
+                    <text x="60" y="770" fontSize="54" fontWeight="700" fill="#A35566">Unbreakable Glaze</text>
 
                     {/* Shade and swatch */}
                     <g transform="translate(60, 830)">
-                      <text x="0" y="0" fontSize="28" fill="#B08996" fontFamily="ui-sans-serif, system-ui">Shade</text>
-                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33" fontFamily="ui-sans-serif, system-ui">{shadeName}</text>
+                      <text x="0" y="0" fontSize="28" fill="#B08996">Shade</text>
+                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33">{shadeName}</text>
                       <circle cx={W-180-220-40} cy="24" r="24" fill={shadeHex} />
                     </g>
 
                     {/* Date row */}
                     <g transform="translate(60, 980)">
-                      <text x="0" y="0" fontSize="28" fill="#B08996" fontFamily="ui-sans-serif, system-ui">Date</text>
-                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33" fontFamily="ui-sans-serif, system-ui">{todayLabel}</text>
+                      <text x="0" y="0" fontSize="28" fill="#B08996">Date</text>
+                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33">{todayLabel}</text>
                     </g>
 
                     {/* Brand */}
-                    <text x={(W-180)/2} y={H-240-40} fontSize="80" fontWeight="600" textAnchor="middle" fill="#E3C6CF" letterSpacing="8" fontFamily="ui-sans-serif, system-ui">PIXY</text>
+                    <text x={(W-180)/2} y={H-240-40} fontSize="80" fontWeight="600" textAnchor="middle" fill="#E3C6CF" letterSpacing="8">PIXY</text>
                   </g>
                 </svg>
               </div>

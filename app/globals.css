@@ -44,6 +44,7 @@ body {
   color: var(--retro-title-text);
   padding: 10px 14px;
   font-weight: 700;
+  font-family: var(--font-retro), system-ui;
   border-bottom: 2px solid var(--retro-border-dark);
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;

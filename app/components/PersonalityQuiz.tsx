@@ -167,7 +167,7 @@ export default function PersonalityQuiz({ onComplete, onBack }: PersonalityQuizP
       <div className="max-w-2xl w-full">
         <div className="retro-window">
           <div className="retro-titlebar flex items-center justify-between">
-            <span>Sample Calendar - Month View</span>
+            <span>Which lipstick suits you best?</span>
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
