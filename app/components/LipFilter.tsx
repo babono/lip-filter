@@ -102,7 +102,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         faceLandmarkerRef.current.close();
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Set recommended color when component mounts
