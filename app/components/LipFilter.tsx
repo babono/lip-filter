@@ -281,6 +281,26 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
+
+     const highlightPoints = [
+          landmarks[42], // salah satu titik di bibir bawah
+          landmarks[43],
+          landmarks[44],
+          landmarks[45]
+        ];
+        
+        ctx.beginPath();
+        if (highlightPoints.length > 0) {
+            ctx.moveTo(highlightPoints[0].x * width, highlightPoints[0].y * height);
+            for(let i = 1; i < highlightPoints.length; i++){
+                ctx.lineTo(highlightPoints[i].x * width, highlightPoints[i].y * height);
+            }
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
     // Apply glossy effect
     ctx.save();
     ctx.globalCompositeOperation = 'overlay';
