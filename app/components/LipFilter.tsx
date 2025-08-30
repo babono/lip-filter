@@ -44,11 +44,18 @@ const MOUTH_INNER = [
 
 ];
 
+const START_BRIGHTNESS = 0.1;
+const START_LIPSTICK_OPACITY = 0.7; // 70% default opacity
+
 export default function LipFilter({ colorRecommendation, onCapture, onBack }: LipFilterProps) {
   const [selectedColor, setSelectedColor] = useState(colorRecommendation?.color || '#BB5F43');
   const [isRunning, setIsRunning] = useState(false);
+  const [lipstickOpacityState, setLipstickOpacityState] = useState(START_LIPSTICK_OPACITY);
+  const lipstickOpacityRef = useRef(START_LIPSTICK_OPACITY);
   const [isInitialized, setIsInitialized] = useState(false);
   const [message, setMessage] = useState('');
+  const [opacityState, setOpacityState] = useState(START_BRIGHTNESS); // For UI updates only
+  const opacityRef = useRef(START_BRIGHTNESS); // For animation frame updates
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -122,6 +129,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     };
 
     autoStartCamera();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -193,9 +201,11 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
     // drawUtilsRef.current?.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LIPS, { color: "#FF0000" });
 
-    // Pre-compute styles
-    const fillStyle = currentColorRef.current + 'B3'; // 70% opacity in hex
-    const strokeStyle = currentColorRef.current; // 25% opacity
+    // Pre-compute styles with dynamic opacity
+    const opacity = Math.round(lipstickOpacityRef.current * 255).toString(16).padStart(2, '0');
+    const strokeOpacity = Math.round(lipstickOpacityRef.current * 0.35 * 255).toString(16).padStart(2, '0');
+    const fillStyle = currentColorRef.current + opacity; // Dynamic opacity
+    const strokeStyle = currentColorRef.current + strokeOpacity; // 35% of main opacity
     
     // Create paths with optimized point calculation
     for (let i = 0; i < MOUTH_OUTER.length; i++) {
@@ -247,11 +257,9 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     const detector = faceLandmarkerRef.current;
     const ctx = canvas.getContext('2d', { alpha: true });
 
-    
-
     // Process every 3rd frame to reduce load
     frameCountRef.current = (frameCountRef.current + 1) % 3;
-    if (frameCountRef.current !== 0) {
+    if (frameCountRef.current !== 0 || !ctx) {
       animationFrameRef.current = requestAnimationFrame(detectFace);
       return;
     }
@@ -270,16 +278,24 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       return;
     }
 
+    // clear canvas
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    
+    // draw webcam
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(video, 0,0, canvas.width, canvas.height);
+    
+
     try {
       
       const results = detector.detectForVideo(video, currentTimestamp);
       const landmarks = results?.faceLandmarks?.[0];
 
       if (ctx) {
-        ctx.clearRect(0,0,canvas.width, canvas.height);
-        ctx.drawImage(video, 0,0, canvas.width, canvas.height);
         if (landmarks) {
+          ctx.globalCompositeOperation = 'multiply';
           renderLips(ctx, landmarks, canvas.width, canvas.height);
+          // drawGlossy(ctx, MOUTH_OUTER, landmarks);
         } 
       }
 
@@ -289,6 +305,12 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         console.error("Error during face detection:", error);
       }
     }
+
+    // whitening
+    ctx.globalCompositeOperation = "screen";
+    ctx.fillStyle = `rgba(255,255,255,${opacityRef.current * 0.5})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = "source-over";
 
     if (isRunning) {
       animationFrameRef.current = requestAnimationFrame(detectFace);
@@ -459,6 +481,49 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
               <div className="text-center text-red-600 mb-3 text-sm">{message}</div>
             )}
 
+            {/* Swatches */}
+            {/* Effect Controls */}
+            <div className="retro-card p-4 mb-4 space-y-4">
+              {/* Brightness Slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">Lighting Effect</h3>
+                  <span className="text-xs">{Math.round(opacityState * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Math.round(opacityState * 100)}
+                  onChange={(e) => {
+                    const newValue = Number(e.target.value) / 100;
+                    setOpacityState(newValue);
+                    opacityRef.current = newValue;
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* Lipstick Opacity Slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">Lipstick Opacity</h3>
+                  <span className="text-xs">{Math.round(lipstickOpacityState * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Math.round(lipstickOpacityState * 100)}
+                  onChange={(e) => {
+                    const newValue = Number(e.target.value) / 100;
+                    setLipstickOpacityState(newValue);
+                    lipstickOpacityRef.current = newValue;
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+            </div>
             {/* Swatches */}
             <div className="retro-card p-4">
               <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
