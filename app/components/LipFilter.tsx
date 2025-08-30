@@ -289,17 +289,17 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
           landmarks[45]
         ];
         
-        ctx.beginPath();
-        if (highlightPoints.length > 0) {
-            ctx.moveTo(highlightPoints[0].x * width, highlightPoints[0].y * height);
-            for(let i = 1; i < highlightPoints.length; i++){
-                ctx.lineTo(highlightPoints[i].x * width, highlightPoints[i].y * height);
-            }
-        }
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.stroke();
+      ctx.beginPath();
+      if (highlightPoints.length > 0) {
+          ctx.moveTo(highlightPoints[0].x * width, highlightPoints[0].y * height);
+          for(let i = 1; i < highlightPoints.length; i++){
+              ctx.lineTo(highlightPoints[i].x * width, highlightPoints[i].y * height);
+          }
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
 
     // Apply glossy effect
     ctx.save();
