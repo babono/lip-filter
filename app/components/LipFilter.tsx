@@ -2,34 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ColorRecommendation } from '../page';
-
-// Import MediaPipe types
-type MediaPipeLandmark = {
-  x: number;
-  y: number;
-  z: number;
-};
-
-type MediaPipeResults = {
-  multiFaceLandmarks?: MediaPipeLandmark[][];
-};
-
-type FaceMeshInstance = {
-  setOptions: (options: {
-    maxNumFaces: number;
-    refineLandmarks: boolean;
-    minDetectionConfidence: number;
-    minTrackingConfidence: number;
-  }) => void;
-  onResults: (callback: (results: MediaPipeResults) => void) => void;
-  send: (data: { image: HTMLVideoElement }) => Promise<void>;
-  close?: () => void;
-};
-
-type CameraInstance = {
-  start: () => void;
-  stop: () => void;
-};
+import { FaceLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
 
 interface LipFilterProps {
   colorRecommendation: ColorRecommendation | null;
@@ -57,50 +30,79 @@ const pantoneNames = [
 // MediaPipe FaceMesh mouth landmark sets (full rings, correct order)
 const MOUTH_OUTER = [
   // outer rim (includes upper-lip arc 291 -> 61 to avoid flat top)
-  61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146
+  // 61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146
+  61, 185, 40, 39, 37, 0, 267, 269, 270, 409,
+  291, 375, 321, 405, 314, 17, 84, 181, 91, 146
+
 ];
 
 const MOUTH_INNER = [
   // inner rim (mouth opening)
-  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
+  // 78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
+  78, 95, 88, 178, 87, 14, 317, 402, 318, 324,
+  308, 415, 310, 311, 312, 13, 82, 81, 80, 191
+
 ];
 
 export default function LipFilter({ colorRecommendation, onCapture, onBack }: LipFilterProps) {
   const [selectedColor, setSelectedColor] = useState(colorRecommendation?.color || '#BB5F43');
   const [isRunning, setIsRunning] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [message, setMessage] = useState('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const faceMeshRef = useRef<FaceMeshInstance | null>(null);
-  const cameraRef = useRef<CameraInstance | null>(null);
+  const drawUtilsRef = useRef<DrawingUtils>(null);
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
+  const animationFrameRef = useRef<number|null>(null);
 
-  // Load MediaPipe scripts
+  // Cleanup animation frame on unmount
   useEffect(() => {
-    const loadScripts = () => {
-      return new Promise<void>((resolve, reject) => {
-        // Check if already loaded
-        if (typeof window !== 'undefined' && (window as Window & typeof globalThis).FaceMesh) {
-          resolve();
-          return;
-        }
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
-        const script1 = document.createElement('script');
-        script1.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.min.js';
-        script1.onload = () => {
-          const script2 = document.createElement('script');
-          script2.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js';
-          script2.onload = () => resolve();
-          script2.onerror = () => reject(new Error('Failed to load camera utils'));
-          document.head.appendChild(script2);
-        };
-        script1.onerror = () => reject(new Error('Failed to load face mesh'));
-        document.head.appendChild(script1);
-      });
+  // Initialize FaceLandmarker
+  useEffect(() => {
+    const initializeFaceLandmarker = async () => {
+      try {
+        const filesetResolver = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        );
+        
+        faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(filesetResolver, {
+          baseOptions: {
+            modelAssetPath: "./model/face_landmarker.task",
+          },
+          runningMode: "VIDEO",
+          numFaces: 1,
+          outputFaceBlendshapes: false,
+          outputFacialTransformationMatrixes: false,
+        });
+
+        setIsInitialized(true);
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+          drawUtilsRef.current = new DrawingUtils(ctx);
+        }
+      } catch (error) {
+        console.error("Error initializing FaceLandmarker:", error);
+        setMessage("Failed to initialize face detection");
+      }
     };
 
-    loadScripts().catch(console.error);
+    initializeFaceLandmarker();
+
+    return () => {
+      if (faceLandmarkerRef.current) {
+        faceLandmarkerRef.current.close();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Set recommended color when component mounts
@@ -122,6 +124,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
     autoStartCamera();
   }, []);
+
+  useEffect(() => {
+    if (isRunning && isInitialized) {
+      animationFrameRef.current = requestAnimationFrame(detectFace);
+    }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, isInitialized])
 
   const resizeCanvas = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -170,84 +180,120 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     return path;
   };
 
-  // New renderer using even-odd fill and smoothing
-  const renderLips = (landmarks: MediaPipeLandmark[], width: number, height: number) => {
+  const dx = 0;
+  const dy = 0;
+
+  // Optimized renderer using even-odd fill and smoothing
+  const renderLips = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
     if (!landmarks || !canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // MediaPipe landmarks are normalized (0-1), scale to display dimensions
-    const toXY = (i: number): [number, number] => [
-      landmarks[i].x * width, 
-      landmarks[i].y * height
-    ];
-    
-    const outerPts = MOUTH_OUTER.map(toXY);
-    const innerPts = MOUTH_INNER.map(toXY);
-
-    // Fixed opacity and use selected color directly
-    const alpha = 0.7; // Fixed opacity at 70%
-
-    const outerPath = smoothClosedPath(outerPts);
-    const innerPath = smoothClosedPath(innerPts);
-
     ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+    // Use a local array to avoid array creation in the loop
+    const outerPoints: [number, number][] = new Array(MOUTH_OUTER.length);
+    const innerPoints: [number, number][] = new Array(MOUTH_INNER.length);
 
-    // Fill outer minus inner using even-odd rule with selected color
-    ctx.fillStyle = currentColorRef.current + Math.round(alpha * 255).toString(16).padStart(2, '0');
+    // drawUtilsRef.current?.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LIPS, { color: "#FF0000" });
+
+    // Pre-compute styles
+    const fillStyle = currentColorRef.current + 'B3'; // 70% opacity in hex
+    const strokeStyle = currentColorRef.current; // 25% opacity
+    
+    // Create paths with optimized point calculation
+    for (let i = 0; i < MOUTH_OUTER.length; i++) {
+      outerPoints[i] = [
+        landmarks[MOUTH_OUTER[i]].x * width + dx,
+        landmarks[MOUTH_OUTER[i]].y * height + dy
+      ];
+    }
+    const smoothedOuter = smoothClosedPath(outerPoints);
+    
+    for (let i = 0; i < MOUTH_INNER.length; i++) {
+      innerPoints[i] = [
+        landmarks[MOUTH_INNER[i]].x * width + dx,
+        landmarks[MOUTH_INNER[i]].y * height + dy
+      ];
+    }
+    const smoothedInner = smoothClosedPath(innerPoints);
+
+    // Combined path for single draw call
     const combined = new Path2D();
-    combined.addPath(outerPath);
-    combined.addPath(innerPath);
+    combined.addPath(smoothedOuter);
+    combined.addPath(smoothedInner);
+
+    // Single fill operation with even-odd rule
+    ctx.fillStyle = fillStyle;
     ctx.fill(combined, 'evenodd');
 
-    // Soft edge with slightly darker version of selected color
+    // Optimized stroke for outer edge only
+    ctx.lineWidth = 1.25;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = currentColorRef.current + '40'; // 25% opacity for stroke
-    ctx.lineWidth = 1.25;
-    ctx.stroke(outerPath);
+    ctx.strokeStyle = strokeStyle;
+    ctx.stroke(smoothedOuter);
 
     ctx.restore();
   };
 
-  const createFaceMesh = () => {
-    if (typeof window === 'undefined' || !(window as Window & typeof globalThis).FaceMesh) return;
+  const lastProcessedTimeRef = useRef<number>(0);
+  const frameCountRef = useRef<number>(0);
 
-    const FaceMesh = (window as Window & typeof globalThis).FaceMesh;
-    faceMeshRef.current = new FaceMesh({
-      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
+  // No cache needed, calculating dimensions on demand is fast enough
+  const detectFace = async () => {
+    if (!videoRef.current || !faceLandmarkerRef.current || !canvasRef.current || !isRunning) {
+      return;
+    }
 
-    if (!faceMeshRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const detector = faceLandmarkerRef.current;
+    const ctx = canvas.getContext('2d', { alpha: true });
 
-    faceMeshRef.current.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
+    
 
-    faceMeshRef.current.onResults((results: MediaPipeResults) => {
-      resizeCanvas();
-      if (!canvasRef.current || !videoRef.current) return;
+    // Process every 3rd frame to reduce load
+    frameCountRef.current = (frameCountRef.current + 1) % 3;
+    if (frameCountRef.current !== 0) {
+      animationFrameRef.current = requestAnimationFrame(detectFace);
+      return;
+    }
+
+    // Skip if video isn't ready
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      animationFrameRef.current = requestAnimationFrame(detectFace);
+      return;
+    }
+
+    // Throttle frame processing to ~30fps
+    const currentTimestamp = Date.now();
+    const timeSinceLastProcess = currentTimestamp - lastProcessedTimeRef.current;
+    if (timeSinceLastProcess < 33) {
+      animationFrameRef.current = requestAnimationFrame(detectFace);
+      return;
+    }
+
+    try {
       
-      // Use video's actual dimensions for landmark coordinate transformation
-      const width = canvasRef.current.width / (window.devicePixelRatio || 1);
-      const height = canvasRef.current.height / (window.devicePixelRatio || 1);
-      const landmarks = results.multiFaceLandmarks?.[0];
-      
-      if (landmarks) {
-        renderLips(landmarks, width, height);
-      } else {
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        }
+      const results = detector.detectForVideo(video, currentTimestamp);
+      const landmarks = results?.faceLandmarks?.[0];
+
+      if (ctx) {
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        ctx.drawImage(video, 0,0, canvas.width, canvas.height);
+        if (landmarks) {
+          renderLips(ctx, landmarks, canvas.width, canvas.height);
+        } 
       }
-    });
+
+      lastProcessedTimeRef.current = currentTimestamp;
+    } catch (error) {
+      if (error instanceof Error && !error.message.includes('timestamp mismatch')) {
+        console.error("Error during face detection:", error);
+      }
+    }
+
+    if (isRunning) {
+      animationFrameRef.current = requestAnimationFrame(detectFace);
+    }
   };
 
   const startCamera = async () => {
@@ -255,7 +301,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       setMessage('');
       setIsRunning(true);
 
-      // Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: false
@@ -263,42 +308,47 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadeddata = () => {
-              resizeCanvas();
+        await new Promise<void>((resolve, reject) => {
+          if (!videoRef.current) return reject();
+          
+          const loadedmetadata = () => {
+            videoRef.current?.removeEventListener('loadedmetadata', loadedmetadata);
+            resizeCanvas();
+          };
+
+          const loadeddata = async () => {
+            videoRef.current?.removeEventListener('loadeddata', loadeddata);
+            resizeCanvas();
+            try {
+              await videoRef.current?.play();
               resolve();
-            };
-            // Also resize when metadata loads (when we know video dimensions)
-            videoRef.current.onloadedmetadata = () => {
-              resizeCanvas();
-            };
-            videoRef.current.play();
-          }
+            } catch (error: unknown) {
+              const playError = error as { name: string };
+              if (playError.name === 'AbortError') {
+                console.log('Video play interrupted, retrying...');
+                // Wait a bit and try again
+                setTimeout(async () => {
+                  try {
+                    await videoRef.current?.play();
+                    resolve();
+                  } catch (retryError) {
+                    reject(retryError);
+                  }
+                }, 100);
+              } else {
+                reject(playError);
+              }
+            }
+          };
+
+          videoRef.current.addEventListener('loadedmetadata', loadedmetadata);
+          videoRef.current.addEventListener('loadeddata', loadeddata);
         });
 
-        // Create FaceMesh if not already created
-        if (!faceMeshRef.current) {
-          createFaceMesh();
-        }
-
-        // Create camera helper
-        if (typeof window !== 'undefined' && (window as Window & typeof globalThis).Camera) {
-          const Camera = (window as Window & typeof globalThis).Camera;
-          cameraRef.current = new Camera(videoRef.current, {
-            onFrame: async () => {
-              if (faceMeshRef.current && videoRef.current) {
-                await faceMeshRef.current.send({ image: videoRef.current });
-              }
-            },
-            width: 1280,
-            height: 720,
-          });
-          if (cameraRef.current) {
-            cameraRef.current.start();
-          }
-        }
-
+        // Reset timing references and start detection
+        lastProcessedTimeRef.current = 0;
+        animationFrameRef.current = requestAnimationFrame(detectFace);
+        
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
       }
@@ -312,9 +362,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   const stopCamera = () => {
     try {
-      if (cameraRef.current && cameraRef.current.stop) {
-        cameraRef.current.stop();
-      }
+      setIsRunning(false);
       
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
@@ -329,7 +377,10 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         }
       }
 
-      setIsRunning(false);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+
       window.removeEventListener('resize', resizeCanvas);
     } catch (err: unknown) {
       const error = err as Error;
@@ -373,11 +424,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      }
-      
-      // Force MediaPipe to process the next frame with the new color
-      if (faceMeshRef.current && videoRef.current) {
-        faceMeshRef.current.send({ image: videoRef.current });
       }
     }
   };
