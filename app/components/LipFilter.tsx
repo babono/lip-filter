@@ -30,18 +30,13 @@ const pantoneNames = [
 // MediaPipe FaceMesh mouth landmark sets (full rings, correct order)
 const MOUTH_OUTER = [
   // outer rim (includes upper-lip arc 291 -> 61 to avoid flat top)
-  // 61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146
   61, 185, 40, 39, 37, 0, 267, 269, 270, 409,
   291, 375, 321, 405, 314, 17, 84, 181, 91, 146
-
 ];
 
 const MOUTH_INNER = [
   // inner rim (mouth opening)
-  // 78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
-  78, 95, 88, 178, 87, 14, 317, 402, 318, 324,
-  308, 415, 310, 311, 312, 13, 82, 81, 80, 191
-
+  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
 ];
 
 const START_BRIGHTNESS = 0.1;
@@ -295,7 +290,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         if (landmarks) {
           ctx.globalCompositeOperation = 'multiply';
           renderLips(ctx, landmarks, canvas.width, canvas.height);
-          // drawGlossy(ctx, MOUTH_OUTER, landmarks);
         } 
       }
 
