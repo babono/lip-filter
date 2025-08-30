@@ -36,7 +36,7 @@ const MOUTH_OUTER = [
 
 const MOUTH_INNER = [
   // inner rim (mouth opening)
-  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
+  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81
 ];
 
 const START_BRIGHTNESS = 0.1;
@@ -234,6 +234,59 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     ctx.lineCap = 'round';
     ctx.strokeStyle = strokeStyle;
     ctx.stroke(smoothedOuter);
+
+    // Add glossy effect to lower lip using both outer and inner contours
+    const lowerOuterPoints = outerPoints.slice(10); // Get lower outer lip points
+    const lowerInnerPoints = innerPoints.slice(8); // Get lower inner lip points
+    
+    const glossyPath = new Path2D();
+    
+    // Start from the first point of outer lip
+    const startPoint = lowerOuterPoints[0];
+    glossyPath.moveTo(startPoint[0], startPoint[1]);
+    
+    // Create curved path for outer lower lip
+    for (let i = 1; i < lowerOuterPoints.length; i++) {
+      const point = lowerOuterPoints[i];
+      const prevPoint = lowerOuterPoints[i - 1];
+      const cpX = (prevPoint[0] + point[0]) / 2;
+      const cpY = (prevPoint[1] + point[1]) / 2;
+      glossyPath.quadraticCurveTo(cpX, cpY, point[0], point[1]);
+    }
+    
+    // Connect to inner lip points
+    const firstInnerPoint = lowerInnerPoints[0];
+    glossyPath.lineTo(firstInnerPoint[0], firstInnerPoint[1]);
+    
+    // Create curved path for inner lower lip (in reverse)
+    for (let i = lowerInnerPoints.length - 2; i >= 0; i--) {
+      const point = lowerInnerPoints[i];
+      const prevPoint = lowerInnerPoints[i + 1];
+      const cpX = (prevPoint[0] + point[0]) / 2;
+      const cpY = (prevPoint[1] + point[1]) / 2;
+      glossyPath.quadraticCurveTo(cpX, cpY, point[0], point[1]);
+    }
+    
+    glossyPath.closePath();
+    
+    // Create radial gradient for more realistic glossy effect
+    const centerX = (startPoint[0] + lowerInnerPoints[0][0]) / 2;
+    const centerY = (startPoint[1] + lowerInnerPoints[0][1]) / 2;
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY - 5, 0,
+      centerX, centerY, 30
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+    gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.2)');
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    // Apply glossy effect
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = gradient;
+    ctx.fill(glossyPath);
+    ctx.restore();
 
     ctx.restore();
   };
