@@ -73,6 +73,9 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   const animRenderCanvasRef = useRef<FrameRef>({anim: 0, isVideo: false});
   const faceLandmarkResult = useRef<FaceLandmarkerResult|null>(null);
   const IS_SUPPORTED_VIDEO_FRAME = useRef(false);
+  const drawAreaRef = useRef<{x: number; y: number; width: number; height: number}>({x: 0, y: 0, width: 0, height: 0});
+  const dprRef = useRef(1);
+  const cameraContainerRef = useRef<HTMLDivElement>(null);
 
   function cancelAnimFrame({anim, isVideo}: FrameRef) {
     if (isVideo) {
@@ -179,13 +182,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   }, [isRunning, isInitialized])
 
   const resizeCanvas = () => {
-    if (!videoRef.current || !canvasRef.current || !lipsCanvasRef.current) return;
+    if (!canvasRef.current || !lipsCanvasRef.current) return;
     
-    const video = videoRef.current;
     const canvas = canvasRef.current;
     const lipsCanvas = lipsCanvasRef.current;
-    const rect = video.getBoundingClientRect();
+    const target = cameraContainerRef.current || canvas;
+    const rect = target.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
+    dprRef.current = dpr;
     
     // Set canvas size to match video display size exactly
     canvas.width = Math.round(rect.width * dpr);
@@ -236,8 +240,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     return path;
   };
 
-  const dx = 0;
-  const dy = 0;
+  // Offsets for letterboxed drawing area
+  const getDrawOffsets = () => drawAreaRef.current;
 
   // Optimized renderer using even-odd fill and smoothing
   const renderLips = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
@@ -258,6 +262,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     const strokeStyle = currentColorRef.current + strokeOpacity; // 35% of main opacity
     
     // Create paths with optimized point calculation
+    const { x: dx, y: dy } = getDrawOffsets();
+
     for (let i = 0; i < MOUTH_OUTER.length; i++) {
       outerPoints[i] = [
         landmarks[MOUTH_OUTER[i]].x * width + dx,
@@ -374,12 +380,24 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       return;
     }
 
-    // clear canvas
-    ctx.clearRect(0,0,canvas.width, canvas.height);
+    // clear canvas (use CSS pixel space since transform applied)
+    const displayWidth = canvas.width / dprRef.current;
+    const displayHeight = canvas.height / dprRef.current;
+    ctx.clearRect(0,0,displayWidth, displayHeight);
     
-    // draw webcam
+    // draw webcam with cover fit (center crop, no letterbox)
     ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(video, 0,0, canvas.width, canvas.height);
+    const vw = video.videoWidth || 0;
+    const vh = video.videoHeight || 0;
+    if (vw > 0 && vh > 0) {
+      const scale = Math.max(displayWidth / vw, displayHeight / vh);
+      const dw = vw * scale;
+      const dh = vh * scale;
+      const dx = (displayWidth - dw) / 2;
+      const dy = (displayHeight - dh) / 2;
+      drawAreaRef.current = { x: dx, y: dy, width: dw, height: dh };
+      ctx.drawImage(video, dx, dy, dw, dh);
+    }
 
     // Apply beauty effects if enabled
     if (beautyEnabledRef.current) {
@@ -391,12 +409,13 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     }
 
     const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
-    lipsCtx.clearRect(0,0,canvas.width, canvas.height);
+    lipsCtx.clearRect(0,0,displayWidth, displayHeight);
     if (landmarks && currentColorRef.current !== lipstickColors[NONE_INDEX]) {
       lipsCtx.filter = 'blur(2px)'; 
-      renderLips(lipsCtx, landmarks, canvas.width, canvas.height);
+      const { width: dw, height: dh } = drawAreaRef.current;
+      renderLips(lipsCtx, landmarks, dw, dh);
       ctx.globalCompositeOperation = 'overlay';
-      ctx.drawImage(lipsCanvasRef.current!, 0,0)
+      ctx.drawImage(lipsCanvasRef.current!, 0, 0, displayWidth, displayHeight);
     }
 
     if (isRunning) {
@@ -539,27 +558,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   };
 
   const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    // Create a temporary canvas to combine video and lipstick overlay
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx) return;
-
-    tempCanvas.width = videoRef.current.videoWidth;
-    tempCanvas.height = videoRef.current.videoHeight;
-
-    // Draw video frame (flipped back to normal)
-    tempCtx.scale(-1, 1);
-    tempCtx.drawImage(videoRef.current, -tempCanvas.width, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.scale(-1, 1);
-    
-    // Draw lipstick overlay (flipped back to normal)
-    tempCtx.scale(-1, 1);
-    tempCtx.drawImage(canvasRef.current, -tempCanvas.width, 0, tempCanvas.width, tempCanvas.height);
-
-    // Get the image data and pass it to the parent
-    const imageData = tempCanvas.toDataURL();
+    if (!canvasRef.current) return;
+    const imageData = canvasRef.current.toDataURL('image/png');
     onCapture(imageData);
   };
 
@@ -579,122 +579,123 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      <div className="max-w-4xl w-full">
+      <div className="max-w-6xl w-full">
         <div className="retro-window">
           <div className="retro-titlebar flex items-center justify-between">
             <span>Virtual Lip Filter</span>
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
-            {colorRecommendation && (
-              <div className="retro-card p-4 mb-4">
-                <p className="font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
-                <p className="text-xs opacity-80">{colorRecommendation.description}</p>
-              </div>
-            )}
-
-            {/* Controls */}
+            {/* Top Controls */}
             <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
               <button onClick={stopCamera} disabled={!isRunning} className="retro-btn text-sm disabled:opacity-50">Stop Camera</button>
               <button onClick={capturePhoto} disabled={!isRunning} className="retro-btn retro-btn-primary text-sm disabled:opacity-50">📸 Capture & Continue</button>
             </div>
 
-            {/* Camera */}
-            <div className="relative retro-card overflow-hidden mb-4">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto transform scale-x-[-1]" />
-              <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
-              <canvas ref={lipsCanvasRef} className="w-full h-full pointer-events-none transform scale-x-[-1]" />
-            </div>
-
-            {message && (
-              <div className="text-center text-red-600 mb-3 text-sm">{message}</div>
-            )}
-
-            {/* Swatches */}
-            {/* Effect Controls */}
-            <div className="retro-card p-4 mb-4 space-y-4">
-              {/* Beauty Mode Toggle */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Beauty Mode</h3>
-                <button
-                  onClick={() => {
-                    setIsBeautyEnabled(!isBeautyEnabled);
-                    beautyEnabledRef.current = !isBeautyEnabled;
-                  }}
-                  className={`retro-btn text-sm ${isBeautyEnabled ? 'retro-btn-primary' : ''}`}
-                >
-                  {isBeautyEnabled ? '✨ On' : 'Off'}
-                </button>
-              </div>
-
-              {/* Brightness Slider */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">Lighting Effect</h3>
-                  <span className="text-xs">{Math.round(opacityState * 100)}%</span>
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,480px)_1fr] gap-4 items-start">
+              {/* Left: Camera area (portrait) */}
+              <div className="retro-card p-3">
+                <div ref={cameraContainerRef} className="relative w-full aspect-[3/4] bg-black overflow-hidden">
+                  <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+                  <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
+                  <canvas ref={lipsCanvasRef} className="hidden" />
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={Math.round(opacityState * 100)}
-                  onChange={(e) => {
-                    const newValue = Number(e.target.value) / 100;
-                    setOpacityState(newValue);
-                    opacityRef.current = newValue;
-                  }}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                {message && (
+                  <div className="text-center text-red-600 mt-3 text-sm">{message}</div>
+                )}
               </div>
 
-              {/* Lipstick Opacity Slider */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">Lipstick Opacity</h3>
-                  <span className="text-xs">{Math.round(lipstickOpacityState * 100)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={Math.round(lipstickOpacityState * 100)}
-                  onChange={(e) => {
-                    const newValue = Number(e.target.value) / 100;
-                    setLipstickOpacityState(newValue);
-                    lipstickOpacityRef.current = newValue;
-                  }}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-            </div>
-            {/* Swatches */}
-            <div className="retro-card p-4">
-              <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
-              <div className="grid grid-cols-8 gap-2 mb-3">
-                {lipstickColors.map((color, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleColorSelect(color)}
-                    className={`w-10 h-10 rounded-full retro-swatch transition-transform hover:scale-110 ${selectedColor === color ? 'ring-2 ring-pink-400' : ''}`}
-                    style={{ backgroundColor: color }}
-                    title={pantoneNames[index]}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Selected Color:</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
-                  <span className="text-xs">
-                    {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
-                  </span>
-                </div>
-              </div>
-            </div>
+              {/* Right: Settings */}
+              <div className="space-y-4">
+                {colorRecommendation && (
+                  <div className="retro-card p-4">
+                    <p className="font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
+                    <p className="text-xs opacity-80">{colorRecommendation.description}</p>
+                  </div>
+                )}
 
-            <div className="text-center mt-4 text-xs opacity-80">
-              <p>Position your face in the camera view and the AI will apply lipstick automatically.</p>
-              <p className="mt-1">Tip: HTTPS (or localhost) is required for camera access.</p>
+                <div className="retro-card p-4 space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Beauty Mode</h3>
+                    <button
+                      onClick={() => {
+                        setIsBeautyEnabled(!isBeautyEnabled);
+                        beautyEnabledRef.current = !isBeautyEnabled;
+                      }}
+                      className={`retro-btn text-sm ${isBeautyEnabled ? 'retro-btn-primary' : ''}`}
+                    >
+                      {isBeautyEnabled ? '✨ On' : 'Off'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Lighting Effect</h3>
+                      <span className="text-xs">{Math.round(opacityState * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={Math.round(opacityState * 100)}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value) / 100;
+                        setOpacityState(newValue);
+                        opacityRef.current = newValue;
+                      }}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Lipstick Opacity</h3>
+                      <span className="text-xs">{Math.round(lipstickOpacityState * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={Math.round(lipstickOpacityState * 100)}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value) / 100;
+                        setLipstickOpacityState(newValue);
+                        lipstickOpacityRef.current = newValue;
+                      }}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="retro-card p-4">
+                  <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
+                  <div className="grid grid-cols-8 gap-2 mb-3">
+                    {lipstickColors.map((color, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleColorSelect(color)}
+                        className={`w-10 h-10 rounded-full retro-swatch transition-transform hover:scale-110 ${selectedColor === color ? 'ring-2 ring-pink-400' : ''}`}
+                        style={{ backgroundColor: color }}
+                        title={pantoneNames[index]}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Selected Color:</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
+                      <span className="text-xs">
+                        {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center text-xs opacity-80">
+                  <p>Position your face in the camera view and the AI will apply lipstick automatically.</p>
+                  <p className="mt-1">Tip: HTTPS (or localhost) is required for camera access.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
