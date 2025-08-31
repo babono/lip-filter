@@ -666,9 +666,61 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                     </div>
                     <p className="text-xs opacity-80">{colorRecommendation.description}</p>
                   </div>
-                )}
+                )}                
 
+                <div className="retro-card p-4">
+                  <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
+                  <div className="grid grid-cols-4 gap-3 mb-3">
+                    {lipstickData.slice(0, -1).map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleColorSelect(item.color)}
+                        className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${selectedColor === item.color ? 'ring-3 ring-pink-400' : ''}`}
+                        title={item.name}
+                      >
+                        {item.lipImage ? (
+                          <img 
+                            src={item.lipImage} 
+                            alt={item.name}
+                            className="w-full h-16 object-cover"
+                          />
+                        ) : (
+                          <div 
+                            className="w-full h-16"
+                            style={{ backgroundColor: item.color }}
+                          />
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
+                          {item.name}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Selected Color:</span>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const selectedItem = lipstickData.find(item => item.color === selectedColor);
+                        return selectedItem?.swatchImage ? (
+                          <img 
+                            src={selectedItem.swatchImage} 
+                            alt={selectedItem.name}
+                            className="w-8 h-6 object-contain"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
+                        );
+                      })()}
+                      <span className="text-xs">
+                        {lipstickData.find(item => item.color === selectedColor)?.name || 'Custom Color'}
+                      </span>
+                    </div>
+                  </div>
+                </div>   
                 <div className="retro-card p-4 space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Untuk Keperluan Testing</h3>
+                  </div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold">Beauty Mode</h3>
                     <button
@@ -719,57 +771,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
-                </div>
-
-                <div className="retro-card p-4">
-                  <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
-                  <div className="grid grid-cols-4 gap-3 mb-3">
-                    {lipstickData.slice(0, -1).map((item, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleColorSelect(item.color)}
-                        className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${selectedColor === item.color ? 'ring-3 ring-pink-400' : ''}`}
-                        title={item.name}
-                      >
-                        {item.lipImage ? (
-                          <img 
-                            src={item.lipImage} 
-                            alt={item.name}
-                            className="w-full h-16 object-cover"
-                          />
-                        ) : (
-                          <div 
-                            className="w-full h-16"
-                            style={{ backgroundColor: item.color }}
-                          />
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
-                          {item.name}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Selected Color:</span>
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const selectedItem = lipstickData.find(item => item.color === selectedColor);
-                        return selectedItem?.swatchImage ? (
-                          <img 
-                            src={selectedItem.swatchImage} 
-                            alt={selectedItem.name}
-                            className="w-8 h-6 object-contain"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
-                        );
-                      })()}
-                      <span className="text-xs">
-                        {lipstickData.find(item => item.color === selectedColor)?.name || 'Custom Color'}
-                      </span>
-                    </div>
-                  </div>
-                </div>                
+                </div>             
               </div>
             </div>
             {/* Controls */}
