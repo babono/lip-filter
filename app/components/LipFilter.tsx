@@ -595,7 +595,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
             <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,480px)_1fr] gap-4 items-start">
               {/* Left: Camera area (portrait) */}
               <div className="retro-card p-3">
-                <div ref={cameraContainerRef} className="relative w-full aspect-[3/4] bg-black overflow-hidden">
+                <div ref={cameraContainerRef} className="relative w-full aspect-square bg-black overflow-hidden">
                   <video ref={videoRef} autoPlay playsInline muted className="hidden" />
                   <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
                   <canvas ref={lipsCanvasRef} className="hidden" />
