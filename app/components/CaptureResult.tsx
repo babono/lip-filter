@@ -3,6 +3,50 @@
 import { useMemo, useRef } from 'react';
 import { ColorRecommendation } from '../page';
 
+// Lipstick data with images (same as in LipFilter)
+const lipstickData = [
+  { 
+    color: '#BB5F43', 
+    name: 'Barely Peachy', 
+    swatchImage: '/01-barely-peach-swatch.png'
+  },
+  { 
+    color: '#BC494F', 
+    name: 'Coral Courage', 
+    swatchImage: '/02-coral-courage-swatch.png'
+  },
+  { 
+    color: '#AA3E4C', 
+    name: 'Charming Pink', 
+    swatchImage: '/03-charming-pink-swatch.png'
+  },
+  { 
+    color: '#B04A5A', 
+    name: 'Mauve Ambition', 
+    swatchImage: '/04-mauve-ambition-swatch.png'
+  },
+  { 
+    color: '#A4343A', 
+    name: 'Fiery Crimson', 
+    swatchImage: '/05-fiercy-crimson-swatch.png'
+  },
+  { 
+    color: '#8B4513', 
+    name: 'Mahogany Mission', 
+    swatchImage: '/06-mahogany-mission-swatch.png'
+  },
+  { 
+    color: '#A0522D', 
+    name: 'Rosewood Blaze', 
+    swatchImage: '/07-rosewood-blaze-swatch.png'
+  },
+  { 
+    color: '#A3473D', 
+    name: 'Brick Era', 
+    swatchImage: '/08-brick-era-swatch.png'
+  }
+];
+
 interface CaptureResultProps {
   capturedImage: string | null;
   colorRecommendation: ColorRecommendation | null;
@@ -156,7 +200,24 @@ export default function CaptureResult({
               <div className="space-y-4">
                 {colorRecommendation && (
                   <div className="retro-card p-4 text-center">
-                    <p className="font-semibold">Recommended Color: {colorRecommendation.name}</p>
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                      {(() => {
+                        const recommendedItem = lipstickData.find(item => item.color === colorRecommendation.color);
+                        return recommendedItem?.swatchImage ? (
+                          <img 
+                            src={recommendedItem.swatchImage} 
+                            alt={recommendedItem.name}
+                            className="w-12 h-8 object-contain flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
+                        );
+                      })()}
+                      <div className="text-left">
+                        <p className="font-semibold text-sm">Recommended Color:</p>
+                        <p className="font-bold">{colorRecommendation.name}</p>
+                      </div>
+                    </div>
                     <p className="text-xs opacity-80">{colorRecommendation.description}</p>
                   </div>
                 )}

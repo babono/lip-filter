@@ -15,24 +15,67 @@ interface FrameRef {
   isVideo: boolean;
 }
 
-// Only the 8 Pantone colors from the requirements
-const lipstickColors = [
-  '#BB5F43', // 01 Barely Peachy
-  '#BC494F', // 02 Coral Courage
-  '#AA3E4C', // 03 Charming Pink
-  '#B04A5A', // 04 Mauve Ambition
-  '#A4343A', // 05 Fiery Crimson
-  '#8B4513', // 06 Mahogany Mission
-  '#A0522D', // 07 Rosewood Blaze
-  '#A3473D', // 08 Brick Era
-  '#00000000', // no lipstics
+// Enhanced lipstick data with images
+const lipstickData = [
+  { 
+    color: '#BB5F43', 
+    name: 'Barely Peachy', 
+    lipImage: '/01-barely-peach-lip.jpg',
+    swatchImage: '/01-barely-peach-swatch.png'
+  },
+  { 
+    color: '#BC494F', 
+    name: 'Coral Courage', 
+    lipImage: '/02-coral-courage-lip.jpg',
+    swatchImage: '/02-coral-courage-swatch.png'
+  },
+  { 
+    color: '#AA3E4C', 
+    name: 'Charming Pink', 
+    lipImage: '/03-charming-pink-lip.jpg',
+    swatchImage: '/03-charming-pink-swatch.png'
+  },
+  { 
+    color: '#B04A5A', 
+    name: 'Mauve Ambition', 
+    lipImage: '/04-mauve-ambition-lip.jpg',
+    swatchImage: '/04-mauve-ambition-swatch.png'
+  },
+  { 
+    color: '#A4343A', 
+    name: 'Fiery Crimson', 
+    lipImage: '/05-fiercy-crimson-lip.jpg',
+    swatchImage: '/05-fiercy-crimson-swatch.png'
+  },
+  { 
+    color: '#8B4513', 
+    name: 'Mahogany Mission', 
+    lipImage: '/06-mahogany-mission-lip.jpg',
+    swatchImage: '/06-mahogany-mission-swatch.png'
+  },
+  { 
+    color: '#A0522D', 
+    name: 'Rosewood Blaze', 
+    lipImage: '/07-rosewood-blaze-lip.jpg',
+    swatchImage: '/07-rosewood-blaze-swatch.png'
+  },
+  { 
+    color: '#A3473D', 
+    name: 'Brick Era', 
+    lipImage: '/08-brick-era-lip.jpg',
+    swatchImage: '/08-brick-era-swatch.png'
+  },
+  { 
+    color: '#00000000', 
+    name: 'None', 
+    lipImage: null,
+    swatchImage: null
+  }
 ];
 
-const pantoneNames = [
-  'Barely Peachy', 'Coral Courage', 'Charming Pink', 'Mauve Ambition',
-  'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era',
-  'None'
-];
+// Legacy arrays for backward compatibility
+const lipstickColors = lipstickData.map(item => item.color);
+const pantoneNames = lipstickData.map(item => item.name);
 
 const NONE_INDEX = lipstickColors.length - 1;
 
@@ -586,12 +629,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
-            {/* Top Controls */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
-              <button onClick={stopCamera} disabled={!isRunning} className="retro-btn text-sm disabled:opacity-50">Stop Camera</button>
-              <button onClick={capturePhoto} disabled={!isRunning} className="retro-btn retro-btn-primary text-sm disabled:opacity-50">📸 Capture & Continue</button>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,480px)_1fr] gap-4 items-start">
               {/* Left: Camera area (portrait) */}
               <div className="retro-card p-3">
@@ -609,7 +646,24 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
               <div className="space-y-4">
                 {colorRecommendation && (
                   <div className="retro-card p-4">
-                    <p className="font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
+                    <div className="flex items-center gap-3 mb-2">
+                      {(() => {
+                        const recommendedItem = lipstickData.find(item => item.color === colorRecommendation.color);
+                        return recommendedItem?.swatchImage ? (
+                          <img 
+                            src={recommendedItem.swatchImage} 
+                            alt={recommendedItem.name}
+                            className="w-12 h-8 object-contain flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
+                        );
+                      })()}
+                      <div>
+                        <p className="font-semibold text-sm">Your Recommended Color:</p>
+                        <p className="font-bold">{colorRecommendation.name}</p>
+                      </div>
+                    </div>
                     <p className="text-xs opacity-80">{colorRecommendation.description}</p>
                   </div>
                 )}
@@ -669,33 +723,59 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
                 <div className="retro-card p-4">
                   <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
-                  <div className="grid grid-cols-8 gap-2 mb-3">
-                    {lipstickColors.map((color, index) => (
+                  <div className="grid grid-cols-4 gap-3 mb-3">
+                    {lipstickData.slice(0, -1).map((item, index) => (
                       <button
                         key={index}
-                        onClick={() => handleColorSelect(color)}
-                        className={`w-10 h-10 rounded-full retro-swatch transition-transform hover:scale-110 ${selectedColor === color ? 'ring-2 ring-pink-400' : ''}`}
-                        style={{ backgroundColor: color }}
-                        title={pantoneNames[index]}
-                      />
+                        onClick={() => handleColorSelect(item.color)}
+                        className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${selectedColor === item.color ? 'ring-3 ring-pink-400' : ''}`}
+                        title={item.name}
+                      >
+                        {item.lipImage ? (
+                          <img 
+                            src={item.lipImage} 
+                            alt={item.name}
+                            className="w-full h-16 object-cover"
+                          />
+                        ) : (
+                          <div 
+                            className="w-full h-16"
+                            style={{ backgroundColor: item.color }}
+                          />
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
+                          {item.name}
+                        </div>
+                      </button>
                     ))}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Selected Color:</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
+                      {(() => {
+                        const selectedItem = lipstickData.find(item => item.color === selectedColor);
+                        return selectedItem?.swatchImage ? (
+                          <img 
+                            src={selectedItem.swatchImage} 
+                            alt={selectedItem.name}
+                            className="w-8 h-6 object-contain"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
+                        );
+                      })()}
                       <span className="text-xs">
-                        {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
+                        {lipstickData.find(item => item.color === selectedColor)?.name || 'Custom Color'}
                       </span>
                     </div>
                   </div>
-                </div>
-
-                <div className="text-center text-xs opacity-80">
-                  <p>Position your face in the camera view and the AI will apply lipstick automatically.</p>
-                  <p className="mt-1">Tip: HTTPS (or localhost) is required for camera access.</p>
-                </div>
+                </div>                
               </div>
+            </div>
+            {/* Controls */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-4 mb-2">
+              <button onClick={stopCamera} disabled={!isRunning} className="retro-btn text-sm disabled:opacity-50">Stop Camera</button>
+              <button onClick={capturePhoto} disabled={!isRunning} className="retro-btn retro-btn-primary text-sm disabled:opacity-50">📸 Capture & Continue</button>
             </div>
           </div>
         </div>
