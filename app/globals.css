@@ -138,3 +138,54 @@ body {
   border: 3px solid var(--retro-border-dark);
   box-shadow: inset 1px 1px 0 var(--retro-border-light);
 }
+
+/* Top marquee bar */
+.top-marquee {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: linear-gradient(var(--retro-title), var(--retro-title-2));
+  color: var(--retro-title-text);
+  height: 50px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.top-marquee__track {
+  display: flex;
+  white-space: nowrap;
+  will-change: transform;
+  backface-visibility: hidden;
+  animation: marquee-left 30s linear infinite;
+}
+.top-marquee__item {
+  padding: 0 28px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.marquee-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.marquee-logo-small {
+  height: 24px;
+  width: auto;
+  object-fit: contain;
+}
+
+@keyframes marquee-left {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+/* Utility: add padding-top to account for fixed marquee */
+.body-with-marquee {
+  padding-top: 36px;
+}
