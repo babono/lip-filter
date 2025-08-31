@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, } from 'react';
 import HomeScreen from './components/HomeScreen';
 import PersonalityQuiz from './components/PersonalityQuiz';
-import LipFilter from './components/LipFilter';
+import LipFilter from './components/LipFilterV2';
 import CaptureResult from './components/CaptureResult';
 
 // Types for the app state
