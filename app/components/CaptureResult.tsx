@@ -141,57 +141,70 @@ export default function CaptureResult({
                   width="100%"
                   style={{ maxHeight: 700 }}
                 >
-                  {/* Background */}
-                  <rect x="0" y="0" width={W} height={H} fill="#F9E7ED" />
+                  
 
-                  {/* Lanyard slot and charm placeholder (simple) */}
-                  <rect x={W/2 - 60} y={110} width={120} height={24} rx={12} fill="#E3C6CF" />
+                  {/* Card body - moved up and enlarged */}
+                  <g>
+                    <rect x="0" y="0" width={W} height={H} fill="#FFFFFF" />
 
-                  {/* Card body */}
-                  <g transform="translate(90,160)">
-                    <rect x="0" y="0" width={W-180} height={H-240} rx="36" fill="#FFFFFF" stroke="#E7CAD2" strokeWidth="6" />
-
-                    {/* Vertical band */}
-                    <rect x={W-180-120} y={80} width="100" height={H-240-160} rx="20" fill="#C17B86" />
-                    <g transform={`translate(${W-180-70}, ${H/2 - 40}) rotate(-90)`}>
-                      <text x="0" y="0" fontSize="44" fontWeight="700" textAnchor="middle" fill="#FFFFFF">
+                    {/* Vertical band - adjusted for new dimensions */}
+                    <rect x={W-140} y={60} width="100" height={H-120} rx="8" fill="#C17B86" />
+                    <g transform={`translate(${W-110}, ${H/2 - 10}) rotate(-270)`}>
+                      <text x="0" y="0" fontSize="60" letterSpacing="6" fontWeight="400" textAnchor="middle" fill="#FFFFFF">
                         HYPERLAST GLAZED LIP VINYL
                       </text>
                     </g>
 
-                    {/* Photo frame */}
-                    <clipPath id="photoClip">
-                      <rect x="60" y="160" width={W-180-220} height="560" rx="16" />
-                    </clipPath>
+                    {/* Photo frame - Enlarged square aspect ratio */}                    
                     <image
                       href={capturedImage}
-                      x="60"
-                      y="160"
-                      width={W-180-220}
-                      height="560"
-                      preserveAspectRatio="xMidYMid slice"
-                      clipPath="url(#photoClip)"
+                      x="40"
+                      y="200"
+                      width={W-240}
+                      height={W-240}
+                      preserveAspectRatio="xMidYMid slice"                      
                     />
-                    <rect x="60" y="160" width={W-180-220} height="560" rx="16" fill="none" stroke="#EBD3DA" strokeWidth="6" />
+                    <rect x="40" y="200" width={W-240} height={W-240} fill="none" stroke="#EBD3DA" strokeWidth="6" />
 
-                    {/* Title */}
-                    <text x="60" y="770" fontSize="54" fontWeight="700" fill="#A35566">Unbreakable Glaze</text>
+                    {/* Title - Enlarged */}
+                    <text x="40" y={100 + (W-120) + 60} fontSize="64" fontWeight="700" fill="#A35566">Unbreakable Glaze</text>
 
-                    {/* Shade and swatch */}
-                    <g transform="translate(60, 830)">
-                      <text x="0" y="0" fontSize="28" fill="#B08996">Shade</text>
-                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33">{shadeName}</text>
-                      <circle cx={W-180-220-40} cy="24" r="24" fill={shadeHex} />
+                    {/* Shade and swatch - Enlarged */}
+                    <g transform={`translate(40, ${100 + (W-130) + 130})`}>
+                      <text x="0" y="0" fontSize="32" fill="#B08996">Shade</text>
+                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33">{shadeName}</text>
+                      {(() => {
+                        const recommendedItem = lipstickData.find(item => item.color === shadeHex);
+                        return recommendedItem?.swatchImage ? (
+                          <image
+                            href={recommendedItem.swatchImage}
+                            x={W-120-200-70}
+                            y="-24"
+                            width="120"
+                            height="120"
+                            preserveAspectRatio="xMidYMid meet"
+                          />
+                        ) : (
+                          <circle cx={W-120-200-42} cy="28" r="28" fill={shadeHex} />
+                        );
+                      })()}
                     </g>
 
-                    {/* Date row */}
-                    <g transform="translate(60, 980)">
-                      <text x="0" y="0" fontSize="28" fill="#B08996">Date</text>
-                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33">{todayLabel}</text>
+                    {/* Date row - Enlarged */}
+                    <g transform={`translate(40, ${100 + (W-140) + 250})`}>
+                      <text x="0" y="0" fontSize="32" fill="#B08996">Date</text>
+                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33">{todayLabel}</text>
                     </g>
 
-                    {/* Brand */}
-                    <text x={(W-180)/2} y={H-240-40} fontSize="80" fontWeight="600" textAnchor="middle" fill="#E3C6CF" letterSpacing="8">PIXY</text>
+                    {/* Brand Logo */}
+                    <image
+                      href="/logo-pixy-pink.png"
+                      x="40"
+                      y={H-240}
+                      width="300"
+                      height="220"
+                      preserveAspectRatio="xMidYMid meet"
+                    />
                   </g>
                 </svg>
               </div>
