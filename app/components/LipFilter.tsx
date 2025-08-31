@@ -1,13 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, RefObject } from 'react';
 import { ColorRecommendation } from '../page';
-import { FaceLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { FaceLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
 interface LipFilterProps {
   colorRecommendation: ColorRecommendation | null;
   onCapture: (imageData: string) => void;
   onBack: () => void;
+}
+
+interface FrameRef {
+  anim: number;
+  isVideo: boolean;
 }
 
 // Only the 8 Pantone colors from the requirements
@@ -19,13 +24,17 @@ const lipstickColors = [
   '#A4343A', // 05 Fiery Crimson
   '#8B4513', // 06 Mahogany Mission
   '#A0522D', // 07 Rosewood Blaze
-  '#A3473D'  // 08 Brick Era
+  '#A3473D', // 08 Brick Era
+  '#00000000', // no lipstics
 ];
 
 const pantoneNames = [
   'Barely Peachy', 'Coral Courage', 'Charming Pink', 'Mauve Ambition',
-  'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era'
+  'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era',
+  'None'
 ];
+
+const NONE_INDEX = lipstickColors.length - 1;
 
 // MediaPipe FaceMesh mouth landmark sets (full rings, correct order)
 const MOUTH_OUTER = [
@@ -36,7 +45,7 @@ const MOUTH_OUTER = [
 
 const MOUTH_INNER = [
   // inner rim (mouth opening)
-  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81
+  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
 ];
 
 const START_BRIGHTNESS = 0.1;
@@ -51,19 +60,50 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   const [message, setMessage] = useState('');
   const [opacityState, setOpacityState] = useState(START_BRIGHTNESS); // For UI updates only
   const opacityRef = useRef(START_BRIGHTNESS); // For animation frame updates
+  const [isBeautyEnabled, setIsBeautyEnabled] = useState(false);
+  const beautyEnabledRef = useRef(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lipsCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawUtilsRef = useRef<DrawingUtils>(null);
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
-  const animationFrameRef = useRef<number|null>(null);
+  const detectFrameRef = useRef<FrameRef>({anim: 0, isVideo: false});
+  const animRenderCanvasRef = useRef<FrameRef>({anim: 0, isVideo: false});
+  const faceLandmarkResult = useRef<FaceLandmarkerResult|null>(null);
+  const IS_SUPPORTED_VIDEO_FRAME = useRef(false);
+
+  function cancelAnimFrame({anim, isVideo}: FrameRef) {
+    if (isVideo) {
+      videoRef.current?.cancelVideoFrameCallback(anim);
+      return;
+    }
+
+    cancelAnimationFrame(anim);
+  }
+
+  function requestAnimFrame(ref: RefObject<FrameRef>, callback: () => void) {
+    if (IS_SUPPORTED_VIDEO_FRAME.current && videoRef.current) {
+      ref.current.isVideo = true;
+      ref.current.anim = videoRef.current.requestVideoFrameCallback(callback);
+    } else {
+      ref.current.isVideo = false;
+      ref.current.anim = requestAnimationFrame(callback);
+    }
+  }
 
   // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (detectFrameRef.current.anim) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        cancelAnimFrame(detectFrameRef.current);
+      }
+
+      if (animRenderCanvasRef.current.anim) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        cancelAnimFrame(animRenderCanvasRef.current);
       }
     };
   }, []);
@@ -83,8 +123,10 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
           runningMode: "VIDEO",
           numFaces: 1,
           outputFaceBlendshapes: false,
-          outputFacialTransformationMatrixes: false,
+          // outputFacialTransformationMatrixes: false,
         });
+
+        IS_SUPPORTED_VIDEO_FRAME.current = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 
         setIsInitialized(true);
         const ctx = canvasRef.current?.getContext('2d');
@@ -129,17 +171,19 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   useEffect(() => {
     if (isRunning && isInitialized) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
+      requestAnimFrame(detectFrameRef, detectFace);
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
     }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, isInitialized])
 
   const resizeCanvas = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !lipsCanvasRef.current) return;
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    const lipsCanvas = lipsCanvasRef.current;
     const rect = video.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     
@@ -148,10 +192,20 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     canvas.height = Math.round(rect.height * dpr);
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
+
+    lipsCanvas.width = Math.round(rect.width * dpr);
+    lipsCanvas.height = Math.round(rect.height * dpr);
+    lipsCanvas.style.width = rect.width + 'px';
+    lipsCanvas.style.height = rect.height + 'px';
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    const lipsCtx = lipsCanvas.getContext('2d');
+    if (lipsCtx) {
+      lipsCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
   };
 
@@ -187,7 +241,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   // Optimized renderer using even-odd fill and smoothing
   const renderLips = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
-    if (!landmarks || !canvasRef.current) return;
+    if (!landmarks) return;
     ctx.save();
   
     // Use a local array to avoid array creation in the loop
@@ -199,6 +253,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     // Pre-compute styles with dynamic opacity
     const opacity = Math.round(lipstickOpacityRef.current * 255).toString(16).padStart(2, '0');
     const strokeOpacity = Math.round(lipstickOpacityRef.current * 0.35 * 255).toString(16).padStart(2, '0');
+
     const fillStyle = currentColorRef.current + opacity; // Dynamic opacity
     const strokeStyle = currentColorRef.current + strokeOpacity; // 35% of main opacity
     
@@ -281,25 +336,18 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
+    // --- Highlight glossy (specular) ---
+    const minY = Math.min(...outerPoints.map(p => p[1]));
+    const maxY = Math.max(...outerPoints.map(p => p[1]));
 
-     const highlightPoints = [
-          landmarks[42], // salah satu titik di bibir bawah
-          landmarks[43],
-          landmarks[44],
-          landmarks[45]
-        ];
-        
-      ctx.beginPath();
-      if (highlightPoints.length > 0) {
-          ctx.moveTo(highlightPoints[0].x * width, highlightPoints[0].y * height);
-          for(let i = 1; i < highlightPoints.length; i++){
-              ctx.lineTo(highlightPoints[i].x * width, highlightPoints[i].y * height);
-          }
-      }
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.stroke();
+    const gg = ctx.createLinearGradient(0, minY, 0, maxY);
+    gg.addColorStop(0.3, "rgba(255,255,255,0.35)");
+    gg.addColorStop(0.5, "rgba(255,255,255,0.15)");
+    gg.addColorStop(0.7, "rgba(255,255,255,0)");
+    ctx.fillStyle = gg;
+    ctx.globalCompositeOperation = "screen";
+    ctx.fill();
+
 
     // Apply glossy effect
     ctx.save();
@@ -308,41 +356,21 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     ctx.fill(glossyPath);
     ctx.restore();
 
+    
+
     ctx.restore();
   };
 
   const lastProcessedTimeRef = useRef<number>(0);
-  const frameCountRef = useRef<number>(0);
 
-  // No cache needed, calculating dimensions on demand is fast enough
-  const detectFace = async () => {
-    if (!videoRef.current || !faceLandmarkerRef.current || !canvasRef.current || !isRunning) {
-      return;
-    }
-
+  const renderCanvas = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const detector = faceLandmarkerRef.current;
-    const ctx = canvas.getContext('2d', { alpha: true });
+    const ctx = canvas?.getContext('2d');
+    const lipsCtx = lipsCanvasRef.current?.getContext('2d', {alpha: true});
 
-    // Process every 3rd frame to reduce load
-    frameCountRef.current = (frameCountRef.current + 1) % 3;
-    if (frameCountRef.current !== 0 || !ctx) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
-      return;
-    }
-
-    // Skip if video isn't ready
-    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
-      return;
-    }
-
-    // Throttle frame processing to ~30fps
-    const currentTimestamp = Date.now();
-    const timeSinceLastProcess = currentTimestamp - lastProcessedTimeRef.current;
-    if (timeSinceLastProcess < 33) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
+    if (!lipsCtx || !ctx || !canvas || !video) {
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
       return;
     }
 
@@ -352,20 +380,54 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     // draw webcam
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(video, 0,0, canvas.width, canvas.height);
-    
+
+    // Apply beauty effects if enabled
+    if (beautyEnabledRef.current) {
+      // whitening
+      ctx.globalCompositeOperation = "screen";
+      ctx.fillStyle = `rgba(255,255,255,${opacityRef.current * 0.5})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
+    lipsCtx.clearRect(0,0,canvas.width, canvas.height);
+    if (landmarks && currentColorRef.current !== lipstickColors[NONE_INDEX]) {
+      lipsCtx.filter = 'blur(2px)'; 
+      renderLips(lipsCtx, landmarks, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.drawImage(lipsCanvasRef.current!, 0,0)
+    }
+
+    if (isRunning) {
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
+    }
+  }
+
+  // No cache needed, calculating dimensions on demand is fast enough
+  const detectFace = async () => {
+    if (!videoRef.current || !faceLandmarkerRef.current || !canvasRef.current || !isRunning) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const detector = faceLandmarkerRef.current;
+
+    // Skip if video isn't ready
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      return;
+    }
+
+    // Throttle frame processing to ~30fps
+    const currentTimestamp = Math.floor(performance.now());
+    if (currentTimestamp - lastProcessedTimeRef.current < 33) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      return;
+    }
 
     try {
-      
-      const results = detector.detectForVideo(video, currentTimestamp);
-      const landmarks = results?.faceLandmarks?.[0];
-
-      if (ctx) {
-        if (landmarks) {
-          ctx.globalCompositeOperation = 'multiply';
-          renderLips(ctx, landmarks, canvas.width, canvas.height);
-        } 
-      }
-
+      faceLandmarkResult.current = detector.detectForVideo(video, currentTimestamp);
       lastProcessedTimeRef.current = currentTimestamp;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('timestamp mismatch')) {
@@ -373,14 +435,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       }
     }
 
-    // whitening
-    ctx.globalCompositeOperation = "screen";
-    ctx.fillStyle = `rgba(255,255,255,${opacityRef.current * 0.5})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalCompositeOperation = "source-over";
-
     if (isRunning) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
+      requestAnimFrame(detectFrameRef, detectFace);
     }
   };
 
@@ -435,7 +491,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
         // Reset timing references and start detection
         lastProcessedTimeRef.current = 0;
-        animationFrameRef.current = requestAnimationFrame(detectFace);
+        requestAnimFrame(detectFrameRef, detectFace);
+        requestAnimFrame(animRenderCanvasRef, renderCanvas);
         
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
@@ -465,8 +522,12 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         }
       }
 
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (detectFrameRef.current.anim) {
+        cancelAnimFrame(detectFrameRef.current);
+      }
+
+      if (animRenderCanvasRef.current.anim) {
+        cancelAnimFrame(animRenderCanvasRef.current);
       }
 
       window.removeEventListener('resize', resizeCanvas);
@@ -542,6 +603,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
             <div className="relative retro-card overflow-hidden mb-4">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto transform scale-x-[-1]" />
               <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
+              <canvas ref={lipsCanvasRef} className="w-full h-full pointer-events-none transform scale-x-[-1]" />
             </div>
 
             {message && (
@@ -551,6 +613,20 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
             {/* Swatches */}
             {/* Effect Controls */}
             <div className="retro-card p-4 mb-4 space-y-4">
+              {/* Beauty Mode Toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Beauty Mode</h3>
+                <button
+                  onClick={() => {
+                    setIsBeautyEnabled(!isBeautyEnabled);
+                    beautyEnabledRef.current = !isBeautyEnabled;
+                  }}
+                  className={`retro-btn text-sm ${isBeautyEnabled ? 'retro-btn-primary' : ''}`}
+                >
+                  {isBeautyEnabled ? '✨ On' : 'Off'}
+                </button>
+              </div>
+
               {/* Brightness Slider */}
               <div>
                 <div className="flex items-center justify-between mb-2">
