@@ -40,6 +40,26 @@ export default function RootLayout({
         className={`${inter.className} ${geistSans.variable} ${geistMono.variable} ${retro.variable} antialiased bg-retro-desktop`}
       >
         {children}
+        {/* Decorative bottom-right retro window ornament */}
+        <div
+          className="hidden md:block fixed bottom-16 right-8 -z-10 w-64 retro-window select-none pointer-events-none"
+          aria-hidden="true"
+        >
+          <div className="retro-titlebar text-xs">img-ornament.jpg</div>
+          <div className="retro-content p-0">
+            <img src="/img-ornament.jpg" alt="" className="block w-full h-auto" />
+          </div>
+        </div>
+        {/* Decorative left-center retro window ornament (video) */}
+        <div
+          className="hidden md:block fixed top-24 left-8 -z-10 w-64 retro-window select-none pointer-events-none"
+          aria-hidden="true"
+        >
+          <div className="retro-titlebar text-xs">video-ornament.mp4</div>
+          <div className="retro-content p-0">
+            <video src="/video-ornament.mp4" className="block w-full h-auto" autoPlay muted loop playsInline />
+          </div>
+        </div>
       </body>
     </html>
   );
