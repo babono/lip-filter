@@ -295,20 +295,20 @@ export default function CaptureResult({
                 )}
 
                 <div className="retro-card p-4">
-                  <h3 className="font-semibold mb-3">Save Your ID Card</h3>
+                  <h3 className="font-semibold mb-3">Simpan dan Bagikan ID Kamu!</h3>
                   <div className="flex flex-wrap gap-3">
-                    <button onClick={downloadCard} className="retro-btn retro-btn-primary text-sm">📥 Download ID Card (PNG)</button>
-                    <a
+                    <button onClick={downloadCard} className="retro-btn retro-btn-primary w-full text-sm">📥 Download ID Card (PNG)</button>
+                    {/* <a
                       className="retro-btn text-sm"
                       href={capturedImage}
                       download={`lip-photo-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`}
-                    >📷 Download Photo Only</a>
+                    >📷 Download Photo Only</a> */}
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <button onClick={onTryAgain} className="retro-btn">🎨 Try Another Color</button>
-                  <button onClick={onNewQuiz} className="retro-btn retro-btn-primary">🎯 Take New Quiz</button>
+                  <button onClick={onTryAgain} className="retro-btn">🎨 Coba Warna Lainnya</button>
+                  <button onClick={onNewQuiz} className="retro-btn retro-btn-primary">🎯 Lakukan Quiz Lagi</button>
                 </div>
               </div>
             </div>
