@@ -167,13 +167,13 @@ export default function PersonalityQuiz({ onComplete, onBack }: PersonalityQuizP
       <div className="max-w-2xl w-full">
         <div className="retro-window">
           <div className="retro-titlebar flex items-center justify-between">
-            <span>Which lipstick suits you best?</span>
+            <span>Pilih yang cocok denganmu nih!</span>
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
             <div className="text-center mb-4">
               <h1 className="text-xl font-bold mb-1" style={{ fontFamily: 'var(--font-retro), system-ui' }}>Personality Quiz</h1>
-              <p className="text-xs opacity-70">Question {currentQuestion + 1} of {questions.length}</p>
+              <p className="text-xs opacity-70">Pertanyaan {currentQuestion + 1} dari {questions.length}</p>
             </div>
 
             {/* Progress */}

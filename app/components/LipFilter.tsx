@@ -625,7 +625,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       <div className="max-w-6xl w-full">
         <div className="retro-window">
           <div className="retro-titlebar flex items-center justify-between">
-            <span>Virtual Lip Filter</span>
+            <span>Fitting Lip Room</span>
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
