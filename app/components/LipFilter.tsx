@@ -41,7 +41,7 @@ const MOUTH_OUTER = [
 
 const MOUTH_INNER = [
   // inner rim (mouth opening)
-  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81
+  78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
 ];
 
 const START_BRIGHTNESS = 0.1;
@@ -59,6 +59,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lipsCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawUtilsRef = useRef<DrawingUtils>(null);
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
@@ -116,18 +117,18 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
           runningMode: "VIDEO",
           numFaces: 1,
           outputFaceBlendshapes: false,
-          outputFacialTransformationMatrixes: false,
+          // outputFacialTransformationMatrixes: false,
         });
 
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (video) {
-          video.style.display = 'none';
-        }
+        // const video = videoRef.current;
+        // const canvas = canvasRef.current;
+        // if (video) {
+        //   video.style.display = 'none';
+        // }
 
-        if (canvas) {
-          canvas.style.position = 'relative';
-        }
+        // if (canvas) {
+        //   canvas.style.position = 'relative';
+        // }
 
         IS_SUPPORTED_VIDEO_FRAME.current = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 
@@ -182,10 +183,11 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   }, [isRunning, isInitialized])
 
   const resizeCanvas = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !lipsCanvasRef.current) return;
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    const lipsCanvas = lipsCanvasRef.current;
     const rect = video.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     
@@ -194,10 +196,20 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     canvas.height = Math.round(rect.height * dpr);
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
+
+    lipsCanvas.width = Math.round(rect.width * dpr);
+    lipsCanvas.height = Math.round(rect.height * dpr);
+    lipsCanvas.style.width = rect.width + 'px';
+    lipsCanvas.style.height = rect.height + 'px';
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    const lipsCtx = lipsCanvas.getContext('2d');
+    if (lipsCtx) {
+      lipsCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
   };
 
@@ -233,7 +245,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   // Optimized renderer using even-odd fill and smoothing
   const renderLips = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
-    if (!landmarks || !canvasRef.current) return;
+    if (!landmarks) return;
     ctx.save();
   
     // Use a local array to avoid array creation in the loop
@@ -329,8 +341,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
 
      const highlightPoints = [
-          landmarks[42], // salah satu titik di bibir bawah
-          landmarks[43],
+          // landmarks[42], // salah satu titik di bibir bawah
+          // landmarks[43],
           landmarks[44],
           landmarks[45]
         ];
@@ -362,9 +374,10 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   const renderCanvas = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d', { alpha: true });
+    const ctx = canvas?.getContext('2d');
+    const lipsCtx = lipsCanvasRef.current?.getContext('2d', {alpha: true});
 
-    if (!ctx || !canvas || !video) {
+    if (!lipsCtx || !ctx || !canvas || !video) {
       requestAnimFrame(animRenderCanvasRef, renderCanvas);
       return;
     }
@@ -378,8 +391,11 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
     const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
     if (landmarks) {
+      lipsCtx.clearRect(0,0,canvas.width, canvas.height);
+      lipsCtx.filter = 'blur(2px)'; 
+      renderLips(lipsCtx, landmarks, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'multiply';
-      renderLips(ctx, landmarks, canvas.width, canvas.height);
+      ctx.drawImage(lipsCanvasRef.current!, 0,0)
     }
 
     // whitening
@@ -410,7 +426,11 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
     // Throttle frame processing to ~30fps
     const currentTimestamp = Math.floor(performance.now());
-    
+    if (currentTimestamp - lastProcessedTimeRef.current < 33) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      return;
+    }
+
     try {
       faceLandmarkResult.current = detector.detectForVideo(video, currentTimestamp);
       lastProcessedTimeRef.current = currentTimestamp;
@@ -588,6 +608,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
             <div className="relative retro-card overflow-hidden mb-4">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto transform scale-x-[-1]" />
               <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
+              <canvas ref={lipsCanvasRef} className="w-full h-full pointer-events-none transform scale-x-[-1] hidden" />
             </div>
 
             {message && (
