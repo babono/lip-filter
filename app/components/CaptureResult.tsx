@@ -3,6 +3,50 @@
 import { useMemo, useRef } from 'react';
 import { ColorRecommendation } from '../page';
 
+// Lipstick data with images (same as in LipFilter)
+const lipstickData = [
+  { 
+    color: '#BB5F43', 
+    name: 'Barely Peachy', 
+    swatchImage: '/01-barely-peach-swatch.png'
+  },
+  { 
+    color: '#BC494F', 
+    name: 'Coral Courage', 
+    swatchImage: '/02-coral-courage-swatch.png'
+  },
+  { 
+    color: '#AA3E4C', 
+    name: 'Charming Pink', 
+    swatchImage: '/03-charming-pink-swatch.png'
+  },
+  { 
+    color: '#B04A5A', 
+    name: 'Mauve Ambition', 
+    swatchImage: '/04-mauve-ambition-swatch.png'
+  },
+  { 
+    color: '#A4343A', 
+    name: 'Fiery Crimson', 
+    swatchImage: '/05-fiercy-crimson-swatch.png'
+  },
+  { 
+    color: '#8B4513', 
+    name: 'Mahogany Mission', 
+    swatchImage: '/06-mahogany-mission-swatch.png'
+  },
+  { 
+    color: '#A0522D', 
+    name: 'Rosewood Blaze', 
+    swatchImage: '/07-rosewood-blaze-swatch.png'
+  },
+  { 
+    color: '#A3473D', 
+    name: 'Brick Era', 
+    swatchImage: '/08-brick-era-swatch.png'
+  }
+];
+
 interface CaptureResultProps {
   capturedImage: string | null;
   colorRecommendation: ColorRecommendation | null;
@@ -32,32 +76,91 @@ export default function CaptureResult({
   const downloadCard = async () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const serializer = new XMLSerializer();
-    const svgString = serializer.serializeToString(svg);
-    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-    const img = new Image();
-    // Improve rendering for cross-origin data URLs
-    img.crossOrigin = 'anonymous';
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to render SVG'));
-      img.src = svgDataUrl;
-    });
-    const width = svg.viewBox.baseVal.width || svg.width.baseVal.value || 900;
-    const height = svg.viewBox.baseVal.height || svg.height.baseVal.value || 1400;
-    const canvas = document.createElement('canvas');
-    const scale = 2; // export at 2x for better quality
-    canvas.width = Math.round(width * scale);
-    canvas.height = Math.round(height * scale);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `lip-id-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`;
-    link.href = dataUrl;
-    link.click();
+    
+    // Helper function to convert image to data URL
+    const imageToDataUrl = (src: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL());
+        };
+        img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+        img.src = src;
+      });
+    };
+
+    try {
+      // Clone the SVG to avoid modifying the original
+      const svgClone = svg.cloneNode(true) as SVGSVGElement;
+      
+      // Convert all image elements to data URLs
+      const images = svgClone.querySelectorAll('image');
+      for (const imageEl of images) {
+        const href = imageEl.getAttribute('href');
+        if (href && !href.startsWith('data:')) {
+          try {
+            const dataUrl = await imageToDataUrl(href);
+            imageEl.setAttribute('href', dataUrl);
+          } catch (error) {
+            console.warn(`Failed to convert image ${href} to data URL:`, error);
+          }
+        }
+      }
+
+      // Add font definitions to the SVG
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = `
+        text {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+      `;
+      defs.appendChild(style);
+      svgClone.insertBefore(defs, svgClone.firstChild);
+
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgClone);
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to render SVG'));
+        img.src = svgDataUrl;
+      });
+
+      const width = svg.viewBox.baseVal.width || svg.width.baseVal.value || 900;
+      const height = svg.viewBox.baseVal.height || svg.height.baseVal.value || 1400;
+      const canvas = document.createElement('canvas');
+      const scale = 2; // export at 2x for better quality
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      const link = document.createElement('a');
+      link.download = `lip-id-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Failed to download card:', error);
+      alert('Failed to download the card. Please try again.');
+    }
   };
 
   if (!capturedImage) {
@@ -97,57 +200,70 @@ export default function CaptureResult({
                   width="100%"
                   style={{ maxHeight: 700 }}
                 >
-                  {/* Background */}
-                  <rect x="0" y="0" width={W} height={H} fill="#F9E7ED" />
+                  
 
-                  {/* Lanyard slot and charm placeholder (simple) */}
-                  <rect x={W/2 - 60} y={110} width={120} height={24} rx={12} fill="#E3C6CF" />
+                  {/* Card body - moved up and enlarged */}
+                  <g>
+                    <rect x="0" y="0" width={W} height={H} fill="#FFFFFF" />
 
-                  {/* Card body */}
-                  <g transform="translate(90,160)">
-                    <rect x="0" y="0" width={W-180} height={H-240} rx="36" fill="#FFFFFF" stroke="#E7CAD2" strokeWidth="6" />
-
-                    {/* Vertical band */}
-                    <rect x={W-180-120} y={80} width="100" height={H-240-160} rx="20" fill="#C17B86" />
-                    <g transform={`translate(${W-180-70}, ${H/2 - 40}) rotate(-90)`}>
-                      <text x="0" y="0" fontSize="44" fontWeight="700" textAnchor="middle" fill="#FFFFFF">
+                    {/* Vertical band - adjusted for new dimensions */}
+                    <rect x={W-140} y={60} width="100" height={H-120} rx="8" fill="#C17B86" />
+                    <g transform={`translate(${W-110}, ${H/2 - 10}) rotate(-270)`}>
+                      <text x="0" y="0" fontSize="60" letterSpacing="6" fontWeight="400" textAnchor="middle" fill="#FFFFFF" fontFamily="Arial, sans-serif">
                         HYPERLAST GLAZED LIP VINYL
                       </text>
                     </g>
 
-                    {/* Photo frame */}
-                    <clipPath id="photoClip">
-                      <rect x="60" y="160" width={W-180-220} height="560" rx="16" />
-                    </clipPath>
+                    {/* Photo frame - Enlarged square aspect ratio */}                    
                     <image
                       href={capturedImage}
-                      x="60"
-                      y="160"
-                      width={W-180-220}
-                      height="560"
-                      preserveAspectRatio="xMidYMid slice"
-                      clipPath="url(#photoClip)"
+                      x="40"
+                      y="200"
+                      width={W-240}
+                      height={W-240}
+                      preserveAspectRatio="xMidYMid slice"                      
                     />
-                    <rect x="60" y="160" width={W-180-220} height="560" rx="16" fill="none" stroke="#EBD3DA" strokeWidth="6" />
+                    <rect x="40" y="200" width={W-240} height={W-240} fill="none" stroke="#EBD3DA" strokeWidth="6" />
 
-                    {/* Title */}
-                    <text x="60" y="770" fontSize="54" fontWeight="700" fill="#A35566">Unbreakable Glaze</text>
+                    {/* Title - Enlarged */}
+                    <text x="40" y={100 + (W-120) + 60} fontSize="64" fontWeight="700" fill="#A35566" fontFamily="Arial, sans-serif">Unbreakable Glaze</text>
 
-                    {/* Shade and swatch */}
-                    <g transform="translate(60, 830)">
-                      <text x="0" y="0" fontSize="28" fill="#B08996">Shade</text>
-                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33">{shadeName}</text>
-                      <circle cx={W-180-220-40} cy="24" r="24" fill={shadeHex} />
+                    {/* Shade and swatch - Enlarged */}
+                    <g transform={`translate(40, ${100 + (W-130) + 130})`}>
+                      <text x="0" y="0" fontSize="32" fill="#B08996" fontFamily="Arial, sans-serif">Shade</text>
+                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33" fontFamily="Arial, sans-serif">{shadeName}</text>
+                      {(() => {
+                        const recommendedItem = lipstickData.find(item => item.color === shadeHex);
+                        return recommendedItem?.swatchImage ? (
+                          <image
+                            href={recommendedItem.swatchImage}
+                            x={W-120-200-70}
+                            y="-24"
+                            width="120"
+                            height="120"
+                            preserveAspectRatio="xMidYMid meet"
+                          />
+                        ) : (
+                          <circle cx={W-120-200-42} cy="28" r="28" fill={shadeHex} />
+                        );
+                      })()}
                     </g>
 
-                    {/* Date row */}
-                    <g transform="translate(60, 980)">
-                      <text x="0" y="0" fontSize="28" fill="#B08996">Date</text>
-                      <text x="0" y="48" fontSize="38" fontWeight="700" fill="#3D2E33">{todayLabel}</text>
+                    {/* Date row - Enlarged */}
+                    <g transform={`translate(40, ${100 + (W-140) + 250})`}>
+                      <text x="0" y="0" fontSize="32" fill="#B08996" fontFamily="Arial, sans-serif">Date</text>
+                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33" fontFamily="Arial, sans-serif">{todayLabel}</text>
                     </g>
 
-                    {/* Brand */}
-                    <text x={(W-180)/2} y={H-240-40} fontSize="80" fontWeight="600" textAnchor="middle" fill="#E3C6CF" letterSpacing="8">PIXY</text>
+                    {/* Brand Logo */}
+                    <image
+                      href="/logo-pixy-pink.png"
+                      x="40"
+                      y={H-240}
+                      width="300"
+                      height="220"
+                      preserveAspectRatio="xMidYMid meet"
+                    />
                   </g>
                 </svg>
               </div>
@@ -156,26 +272,43 @@ export default function CaptureResult({
               <div className="space-y-4">
                 {colorRecommendation && (
                   <div className="retro-card p-4 text-center">
-                    <p className="font-semibold">Recommended Color: {colorRecommendation.name}</p>
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                      {(() => {
+                        const recommendedItem = lipstickData.find(item => item.color === colorRecommendation.color);
+                        return recommendedItem?.swatchImage ? (
+                          <img 
+                            src={recommendedItem.swatchImage} 
+                            alt={recommendedItem.name}
+                            className="w-12 h-8 object-contain flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
+                        );
+                      })()}
+                      <div className="text-left">
+                        <p className="font-semibold text-sm">Recommended Color:</p>
+                        <p className="font-bold">{colorRecommendation.name}</p>
+                      </div>
+                    </div>
                     <p className="text-xs opacity-80">{colorRecommendation.description}</p>
                   </div>
                 )}
 
                 <div className="retro-card p-4">
-                  <h3 className="font-semibold mb-3">Save Your ID Card</h3>
+                  <h3 className="font-semibold mb-3">Simpan dan Bagikan ID Kamu!</h3>
                   <div className="flex flex-wrap gap-3">
-                    <button onClick={downloadCard} className="retro-btn retro-btn-primary text-sm">📥 Download ID Card (PNG)</button>
-                    <a
+                    <button onClick={downloadCard} className="retro-btn retro-btn-primary w-full text-sm">📥 Download ID Card (PNG)</button>
+                    {/* <a
                       className="retro-btn text-sm"
                       href={capturedImage}
                       download={`lip-photo-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`}
-                    >📷 Download Photo Only</a>
+                    >📷 Download Photo Only</a> */}
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <button onClick={onTryAgain} className="retro-btn">🎨 Try Another Color</button>
-                  <button onClick={onNewQuiz} className="retro-btn retro-btn-primary">🎯 Take New Quiz</button>
+                  <button onClick={onTryAgain} className="retro-btn">🎨 Coba Warna Lainnya</button>
+                  <button onClick={onNewQuiz} className="retro-btn retro-btn-primary">🎯 Lakukan Quiz Lagi</button>
                 </div>
               </div>
             </div>

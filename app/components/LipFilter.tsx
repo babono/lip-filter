@@ -1,35 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, RefObject } from 'react';
 import { ColorRecommendation } from '../page';
-
-// Import MediaPipe types
-type MediaPipeLandmark = {
-  x: number;
-  y: number;
-  z: number;
-};
-
-type MediaPipeResults = {
-  multiFaceLandmarks?: MediaPipeLandmark[][];
-};
-
-type FaceMeshInstance = {
-  setOptions: (options: {
-    maxNumFaces: number;
-    refineLandmarks: boolean;
-    minDetectionConfidence: number;
-    minTrackingConfidence: number;
-  }) => void;
-  onResults: (callback: (results: MediaPipeResults) => void) => void;
-  send: (data: { image: HTMLVideoElement }) => Promise<void>;
-  close?: () => void;
-};
-
-type CameraInstance = {
-  start: () => void;
-  stop: () => void;
-};
+import { FaceLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
 interface LipFilterProps {
   colorRecommendation: ColorRecommendation | null;
@@ -37,27 +10,80 @@ interface LipFilterProps {
   onBack: () => void;
 }
 
-// Only the 8 Pantone colors from the requirements
-const lipstickColors = [
-  '#BB5F43', // 01 Barely Peachy
-  '#BC494F', // 02 Coral Courage
-  '#AA3E4C', // 03 Charming Pink
-  '#B04A5A', // 04 Mauve Ambition
-  '#A4343A', // 05 Fiery Crimson
-  '#8B4513', // 06 Mahogany Mission
-  '#A0522D', // 07 Rosewood Blaze
-  '#A3473D'  // 08 Brick Era
+interface FrameRef {
+  anim: number;
+  isVideo: boolean;
+}
+
+// Enhanced lipstick data with images
+const lipstickData = [
+  { 
+    color: '#BB5F43', 
+    name: 'Barely Peachy', 
+    lipImage: '/01-barely-peach-lip.jpg',
+    swatchImage: '/01-barely-peach-swatch.png'
+  },
+  { 
+    color: '#BC494F', 
+    name: 'Coral Courage', 
+    lipImage: '/02-coral-courage-lip.jpg',
+    swatchImage: '/02-coral-courage-swatch.png'
+  },
+  { 
+    color: '#AA3E4C', 
+    name: 'Charming Pink', 
+    lipImage: '/03-charming-pink-lip.jpg',
+    swatchImage: '/03-charming-pink-swatch.png'
+  },
+  { 
+    color: '#B04A5A', 
+    name: 'Mauve Ambition', 
+    lipImage: '/04-mauve-ambition-lip.jpg',
+    swatchImage: '/04-mauve-ambition-swatch.png'
+  },
+  { 
+    color: '#A4343A', 
+    name: 'Fiery Crimson', 
+    lipImage: '/05-fiercy-crimson-lip.jpg',
+    swatchImage: '/05-fiercy-crimson-swatch.png'
+  },
+  { 
+    color: '#8B4513', 
+    name: 'Mahogany Mission', 
+    lipImage: '/06-mahogany-mission-lip.jpg',
+    swatchImage: '/06-mahogany-mission-swatch.png'
+  },
+  { 
+    color: '#A0522D', 
+    name: 'Rosewood Blaze', 
+    lipImage: '/07-rosewood-blaze-lip.jpg',
+    swatchImage: '/07-rosewood-blaze-swatch.png'
+  },
+  { 
+    color: '#A3473D', 
+    name: 'Brick Era', 
+    lipImage: '/08-brick-era-lip.jpg',
+    swatchImage: '/08-brick-era-swatch.png'
+  },
+  { 
+    color: '#00000000', 
+    name: 'None', 
+    lipImage: null,
+    swatchImage: null
+  }
 ];
 
-const pantoneNames = [
-  'Barely Peachy', 'Coral Courage', 'Charming Pink', 'Mauve Ambition',
-  'Fiery Crimson', 'Mahogany Mission', 'Rosewood Blaze', 'Brick Era'
-];
+// Legacy arrays for backward compatibility
+const lipstickColors = lipstickData.map(item => item.color);
+const pantoneNames = lipstickData.map(item => item.name);
+
+const NONE_INDEX = lipstickColors.length - 1;
 
 // MediaPipe FaceMesh mouth landmark sets (full rings, correct order)
 const MOUTH_OUTER = [
   // outer rim (includes upper-lip arc 291 -> 61 to avoid flat top)
-  61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146
+  61, 185, 40, 39, 37, 0, 267, 269, 270, 409,
+  291, 375, 321, 405, 314, 17, 84, 181, 91, 146
 ];
 
 const MOUTH_INNER = [
@@ -65,42 +91,107 @@ const MOUTH_INNER = [
   78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82
 ];
 
+const START_BRIGHTNESS = 0.1;
+const START_LIPSTICK_OPACITY = 0.7; // 70% default opacity
+
 export default function LipFilter({ colorRecommendation, onCapture, onBack }: LipFilterProps) {
   const [selectedColor, setSelectedColor] = useState(colorRecommendation?.color || '#BB5F43');
   const [isRunning, setIsRunning] = useState(false);
+  const [lipstickOpacityState, setLipstickOpacityState] = useState(START_LIPSTICK_OPACITY);
+  const lipstickOpacityRef = useRef(START_LIPSTICK_OPACITY);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [message, setMessage] = useState('');
+  const [opacityState, setOpacityState] = useState(START_BRIGHTNESS); // For UI updates only
+  const opacityRef = useRef(START_BRIGHTNESS); // For animation frame updates
+  const [isBeautyEnabled, setIsBeautyEnabled] = useState(false);
+  const beautyEnabledRef = useRef(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const faceMeshRef = useRef<FaceMeshInstance | null>(null);
-  const cameraRef = useRef<CameraInstance | null>(null);
+  const lipsCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawUtilsRef = useRef<DrawingUtils>(null);
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
+  const detectFrameRef = useRef<FrameRef>({anim: 0, isVideo: false});
+  const animRenderCanvasRef = useRef<FrameRef>({anim: 0, isVideo: false});
+  const faceLandmarkResult = useRef<FaceLandmarkerResult|null>(null);
+  const IS_SUPPORTED_VIDEO_FRAME = useRef(false);
+  const drawAreaRef = useRef<{x: number; y: number; width: number; height: number}>({x: 0, y: 0, width: 0, height: 0});
+  const dprRef = useRef(1);
+  const cameraContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load MediaPipe scripts
+  function cancelAnimFrame({anim, isVideo}: FrameRef) {
+    if (isVideo) {
+      videoRef.current?.cancelVideoFrameCallback(anim);
+      return;
+    }
+
+    cancelAnimationFrame(anim);
+  }
+
+  function requestAnimFrame(ref: RefObject<FrameRef>, callback: () => void) {
+    if (IS_SUPPORTED_VIDEO_FRAME.current && videoRef.current) {
+      ref.current.isVideo = true;
+      ref.current.anim = videoRef.current.requestVideoFrameCallback(callback);
+    } else {
+      ref.current.isVideo = false;
+      ref.current.anim = requestAnimationFrame(callback);
+    }
+  }
+
+  // Cleanup animation frame on unmount
   useEffect(() => {
-    const loadScripts = () => {
-      return new Promise<void>((resolve, reject) => {
-        // Check if already loaded
-        if (typeof window !== 'undefined' && (window as Window & typeof globalThis).FaceMesh) {
-          resolve();
-          return;
-        }
+    return () => {
+      if (detectFrameRef.current.anim) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        cancelAnimFrame(detectFrameRef.current);
+      }
 
-        const script1 = document.createElement('script');
-        script1.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.min.js';
-        script1.onload = () => {
-          const script2 = document.createElement('script');
-          script2.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js';
-          script2.onload = () => resolve();
-          script2.onerror = () => reject(new Error('Failed to load camera utils'));
-          document.head.appendChild(script2);
-        };
-        script1.onerror = () => reject(new Error('Failed to load face mesh'));
-        document.head.appendChild(script1);
-      });
+      if (animRenderCanvasRef.current.anim) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        cancelAnimFrame(animRenderCanvasRef.current);
+      }
+    };
+  }, []);
+
+  // Initialize FaceLandmarker
+  useEffect(() => {
+    const initializeFaceLandmarker = async () => {
+      try {
+        const filesetResolver = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        );
+        
+        faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(filesetResolver, {
+          baseOptions: {
+            modelAssetPath: "./model/face_landmarker.task",
+          },
+          runningMode: "VIDEO",
+          numFaces: 1,
+          outputFaceBlendshapes: false,
+          // outputFacialTransformationMatrixes: false,
+        });
+
+        IS_SUPPORTED_VIDEO_FRAME.current = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+
+        setIsInitialized(true);
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+          drawUtilsRef.current = new DrawingUtils(ctx);
+        }
+      } catch (error) {
+        console.error("Error initializing FaceLandmarker:", error);
+        setMessage("Failed to initialize face detection");
+      }
     };
 
-    loadScripts().catch(console.error);
+    initializeFaceLandmarker();
+
+    return () => {
+      if (faceLandmarkerRef.current) {
+        faceLandmarkerRef.current.close();
+      }
+    };
   }, []);
 
   // Set recommended color when component mounts
@@ -121,25 +212,47 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     };
 
     autoStartCamera();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (isRunning && isInitialized) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
+    }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, isInitialized])
+
   const resizeCanvas = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!canvasRef.current || !lipsCanvasRef.current) return;
     
-    const video = videoRef.current;
     const canvas = canvasRef.current;
-    const rect = video.getBoundingClientRect();
+    const lipsCanvas = lipsCanvasRef.current;
+    const target = cameraContainerRef.current || canvas;
+    const rect = target.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
+    dprRef.current = dpr;
     
     // Set canvas size to match video display size exactly
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
+
+    lipsCanvas.width = Math.round(rect.width * dpr);
+    lipsCanvas.height = Math.round(rect.height * dpr);
+    lipsCanvas.style.width = rect.width + 'px';
+    lipsCanvas.style.height = rect.height + 'px';
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    const lipsCtx = lipsCanvas.getContext('2d');
+    if (lipsCtx) {
+      lipsCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
   };
 
@@ -170,84 +283,223 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     return path;
   };
 
-  // New renderer using even-odd fill and smoothing
-  const renderLips = (landmarks: MediaPipeLandmark[], width: number, height: number) => {
-    if (!landmarks || !canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  // Offsets for letterboxed drawing area
+  const getDrawOffsets = () => drawAreaRef.current;
 
-    // MediaPipe landmarks are normalized (0-1), scale to display dimensions
-    const toXY = (i: number): [number, number] => [
-      landmarks[i].x * width, 
-      landmarks[i].y * height
-    ];
-    
-    const outerPts = MOUTH_OUTER.map(toXY);
-    const innerPts = MOUTH_INNER.map(toXY);
-
-    // Fixed opacity and use selected color directly
-    const alpha = 0.7; // Fixed opacity at 70%
-
-    const outerPath = smoothClosedPath(outerPts);
-    const innerPath = smoothClosedPath(innerPts);
-
+  // Optimized renderer using even-odd fill and smoothing
+  const renderLips = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
+    if (!landmarks) return;
     ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+    // Use a local array to avoid array creation in the loop
+    const outerPoints: [number, number][] = new Array(MOUTH_OUTER.length);
+    const innerPoints: [number, number][] = new Array(MOUTH_INNER.length);
 
-    // Fill outer minus inner using even-odd rule with selected color
-    ctx.fillStyle = currentColorRef.current + Math.round(alpha * 255).toString(16).padStart(2, '0');
+    // drawUtilsRef.current?.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LIPS, { color: "#FF0000" });
+
+    // Pre-compute styles with dynamic opacity
+    const opacity = Math.round(lipstickOpacityRef.current * 255).toString(16).padStart(2, '0');
+    const strokeOpacity = Math.round(lipstickOpacityRef.current * 0.35 * 255).toString(16).padStart(2, '0');
+
+    const fillStyle = currentColorRef.current + opacity; // Dynamic opacity
+    const strokeStyle = currentColorRef.current + strokeOpacity; // 35% of main opacity
+    
+    // Create paths with optimized point calculation
+    const { x: dx, y: dy } = getDrawOffsets();
+
+    for (let i = 0; i < MOUTH_OUTER.length; i++) {
+      outerPoints[i] = [
+        landmarks[MOUTH_OUTER[i]].x * width + dx,
+        landmarks[MOUTH_OUTER[i]].y * height + dy
+      ];
+    }
+    const smoothedOuter = smoothClosedPath(outerPoints);
+    
+    for (let i = 0; i < MOUTH_INNER.length; i++) {
+      innerPoints[i] = [
+        landmarks[MOUTH_INNER[i]].x * width + dx,
+        landmarks[MOUTH_INNER[i]].y * height + dy
+      ];
+    }
+    const smoothedInner = smoothClosedPath(innerPoints);
+
+    // Combined path for single draw call
     const combined = new Path2D();
-    combined.addPath(outerPath);
-    combined.addPath(innerPath);
+    combined.addPath(smoothedOuter);
+    combined.addPath(smoothedInner);
+
+    // Single fill operation with even-odd rule
+    ctx.fillStyle = fillStyle;
     ctx.fill(combined, 'evenodd');
 
-    // Soft edge with slightly darker version of selected color
+    // Optimized stroke for outer edge only
+    ctx.lineWidth = 1.25;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = currentColorRef.current + '40'; // 25% opacity for stroke
-    ctx.lineWidth = 1.25;
-    ctx.stroke(outerPath);
+    ctx.strokeStyle = strokeStyle;
+    ctx.stroke(smoothedOuter);
+
+    // Add glossy effect to lower lip using both outer and inner contours
+    const lowerOuterPoints = outerPoints.slice(10); // Get lower outer lip points
+    const lowerInnerPoints = innerPoints.slice(8); // Get lower inner lip points
+    
+    const glossyPath = new Path2D();
+    
+    // Start from the first point of outer lip
+    const startPoint = lowerOuterPoints[0];
+    glossyPath.moveTo(startPoint[0], startPoint[1]);
+    
+    // Create curved path for outer lower lip
+    for (let i = 1; i < lowerOuterPoints.length; i++) {
+      const point = lowerOuterPoints[i];
+      const prevPoint = lowerOuterPoints[i - 1];
+      const cpX = (prevPoint[0] + point[0]) / 2;
+      const cpY = (prevPoint[1] + point[1]) / 2;
+      glossyPath.quadraticCurveTo(cpX, cpY, point[0], point[1]);
+    }
+    
+    // Connect to inner lip points
+    const firstInnerPoint = lowerInnerPoints[0];
+    glossyPath.lineTo(firstInnerPoint[0], firstInnerPoint[1]);
+    
+    // Create curved path for inner lower lip (in reverse)
+    for (let i = lowerInnerPoints.length - 2; i >= 0; i--) {
+      const point = lowerInnerPoints[i];
+      const prevPoint = lowerInnerPoints[i + 1];
+      const cpX = (prevPoint[0] + point[0]) / 2;
+      const cpY = (prevPoint[1] + point[1]) / 2;
+      glossyPath.quadraticCurveTo(cpX, cpY, point[0], point[1]);
+    }
+    
+    glossyPath.closePath();
+    
+    // Create radial gradient for more realistic glossy effect
+    const centerX = (startPoint[0] + lowerInnerPoints[0][0]) / 2;
+    const centerY = (startPoint[1] + lowerInnerPoints[0][1]) / 2;
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY - 5, 0,
+      centerX, centerY, 30
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+    gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.2)');
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    // --- Highlight glossy (specular) ---
+    const minY = Math.min(...outerPoints.map(p => p[1]));
+    const maxY = Math.max(...outerPoints.map(p => p[1]));
+
+    const gg = ctx.createLinearGradient(0, minY, 0, maxY);
+    gg.addColorStop(0.3, "rgba(255,255,255,0.35)");
+    gg.addColorStop(0.5, "rgba(255,255,255,0.15)");
+    gg.addColorStop(0.7, "rgba(255,255,255,0)");
+    ctx.fillStyle = gg;
+    ctx.globalCompositeOperation = "screen";
+    ctx.fill();
+
+
+    // Apply glossy effect
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = gradient;
+    ctx.fill(glossyPath);
+    ctx.restore();
+
+    
 
     ctx.restore();
   };
 
-  const createFaceMesh = () => {
-    if (typeof window === 'undefined' || !(window as Window & typeof globalThis).FaceMesh) return;
+  const lastProcessedTimeRef = useRef<number>(0);
 
-    const FaceMesh = (window as Window & typeof globalThis).FaceMesh;
-    faceMeshRef.current = new FaceMesh({
-      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
+  const renderCanvas = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const lipsCtx = lipsCanvasRef.current?.getContext('2d', {alpha: true});
 
-    if (!faceMeshRef.current) return;
+    if (!lipsCtx || !ctx || !canvas || !video) {
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
+      return;
+    }
 
-    faceMeshRef.current.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
+    // clear canvas (use CSS pixel space since transform applied)
+    const displayWidth = canvas.width / dprRef.current;
+    const displayHeight = canvas.height / dprRef.current;
+    ctx.clearRect(0,0,displayWidth, displayHeight);
+    
+    // draw webcam with cover fit (center crop, no letterbox)
+    ctx.globalCompositeOperation = 'source-over';
+    const vw = video.videoWidth || 0;
+    const vh = video.videoHeight || 0;
+    if (vw > 0 && vh > 0) {
+      const scale = Math.max(displayWidth / vw, displayHeight / vh);
+      const dw = vw * scale;
+      const dh = vh * scale;
+      const dx = (displayWidth - dw) / 2;
+      const dy = (displayHeight - dh) / 2;
+      drawAreaRef.current = { x: dx, y: dy, width: dw, height: dh };
+      ctx.drawImage(video, dx, dy, dw, dh);
+    }
 
-    faceMeshRef.current.onResults((results: MediaPipeResults) => {
-      resizeCanvas();
-      if (!canvasRef.current || !videoRef.current) return;
-      
-      // Use video's actual dimensions for landmark coordinate transformation
-      const width = canvasRef.current.width / (window.devicePixelRatio || 1);
-      const height = canvasRef.current.height / (window.devicePixelRatio || 1);
-      const landmarks = results.multiFaceLandmarks?.[0];
-      
-      if (landmarks) {
-        renderLips(landmarks, width, height);
-      } else {
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        }
+    // Apply beauty effects if enabled
+    if (beautyEnabledRef.current) {
+      // whitening
+      ctx.globalCompositeOperation = "screen";
+      ctx.fillStyle = `rgba(255,255,255,${opacityRef.current * 0.5})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
+    lipsCtx.clearRect(0,0,displayWidth, displayHeight);
+    if (landmarks && currentColorRef.current !== lipstickColors[NONE_INDEX]) {
+      lipsCtx.filter = 'blur(2px)'; 
+      const { width: dw, height: dh } = drawAreaRef.current;
+      renderLips(lipsCtx, landmarks, dw, dh);
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.drawImage(lipsCanvasRef.current!, 0, 0, displayWidth, displayHeight);
+    }
+
+    if (isRunning) {
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
+    }
+  }
+
+  // No cache needed, calculating dimensions on demand is fast enough
+  const detectFace = async () => {
+    if (!videoRef.current || !faceLandmarkerRef.current || !canvasRef.current || !isRunning) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const detector = faceLandmarkerRef.current;
+
+    // Skip if video isn't ready
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      return;
+    }
+
+    // Throttle frame processing to ~30fps
+    const currentTimestamp = Math.floor(performance.now());
+    if (currentTimestamp - lastProcessedTimeRef.current < 33) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      return;
+    }
+
+    try {
+      faceLandmarkResult.current = detector.detectForVideo(video, currentTimestamp);
+      lastProcessedTimeRef.current = currentTimestamp;
+    } catch (error) {
+      if (error instanceof Error && !error.message.includes('timestamp mismatch')) {
+        console.error("Error during face detection:", error);
       }
-    });
+    }
+
+    if (isRunning) {
+      requestAnimFrame(detectFrameRef, detectFace);
+    }
   };
 
   const startCamera = async () => {
@@ -255,7 +507,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       setMessage('');
       setIsRunning(true);
 
-      // Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: false
@@ -263,42 +514,48 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadeddata = () => {
-              resizeCanvas();
+        await new Promise<void>((resolve, reject) => {
+          if (!videoRef.current) return reject();
+          
+          const loadedmetadata = () => {
+            videoRef.current?.removeEventListener('loadedmetadata', loadedmetadata);
+            resizeCanvas();
+          };
+
+          const loadeddata = async () => {
+            videoRef.current?.removeEventListener('loadeddata', loadeddata);
+            resizeCanvas();
+            try {
+              await videoRef.current?.play();
               resolve();
-            };
-            // Also resize when metadata loads (when we know video dimensions)
-            videoRef.current.onloadedmetadata = () => {
-              resizeCanvas();
-            };
-            videoRef.current.play();
-          }
+            } catch (error: unknown) {
+              const playError = error as { name: string };
+              if (playError.name === 'AbortError') {
+                console.log('Video play interrupted, retrying...');
+                // Wait a bit and try again
+                setTimeout(async () => {
+                  try {
+                    await videoRef.current?.play();
+                    resolve();
+                  } catch (retryError) {
+                    reject(retryError);
+                  }
+                }, 100);
+              } else {
+                reject(playError);
+              }
+            }
+          };
+
+          videoRef.current.addEventListener('loadedmetadata', loadedmetadata);
+          videoRef.current.addEventListener('loadeddata', loadeddata);
         });
 
-        // Create FaceMesh if not already created
-        if (!faceMeshRef.current) {
-          createFaceMesh();
-        }
-
-        // Create camera helper
-        if (typeof window !== 'undefined' && (window as Window & typeof globalThis).Camera) {
-          const Camera = (window as Window & typeof globalThis).Camera;
-          cameraRef.current = new Camera(videoRef.current, {
-            onFrame: async () => {
-              if (faceMeshRef.current && videoRef.current) {
-                await faceMeshRef.current.send({ image: videoRef.current });
-              }
-            },
-            width: 1280,
-            height: 720,
-          });
-          if (cameraRef.current) {
-            cameraRef.current.start();
-          }
-        }
-
+        // Reset timing references and start detection
+        lastProcessedTimeRef.current = 0;
+        requestAnimFrame(detectFrameRef, detectFace);
+        requestAnimFrame(animRenderCanvasRef, renderCanvas);
+        
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
       }
@@ -312,9 +569,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   const stopCamera = () => {
     try {
-      if (cameraRef.current && cameraRef.current.stop) {
-        cameraRef.current.stop();
-      }
+      setIsRunning(false);
       
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
@@ -329,7 +584,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         }
       }
 
-      setIsRunning(false);
+      if (detectFrameRef.current.anim) {
+        cancelAnimFrame(detectFrameRef.current);
+      }
+
+      if (animRenderCanvasRef.current.anim) {
+        cancelAnimFrame(animRenderCanvasRef.current);
+      }
+
       window.removeEventListener('resize', resizeCanvas);
     } catch (err: unknown) {
       const error = err as Error;
@@ -339,27 +601,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   };
 
   const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    // Create a temporary canvas to combine video and lipstick overlay
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx) return;
-
-    tempCanvas.width = videoRef.current.videoWidth;
-    tempCanvas.height = videoRef.current.videoHeight;
-
-    // Draw video frame (flipped back to normal)
-    tempCtx.scale(-1, 1);
-    tempCtx.drawImage(videoRef.current, -tempCanvas.width, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.scale(-1, 1);
-    
-    // Draw lipstick overlay (flipped back to normal)
-    tempCtx.scale(-1, 1);
-    tempCtx.drawImage(canvasRef.current, -tempCanvas.width, 0, tempCanvas.width, tempCanvas.height);
-
-    // Get the image data and pass it to the parent
-    const imageData = tempCanvas.toDataURL();
+    if (!canvasRef.current) return;
+    const imageData = canvasRef.current.toDataURL('image/png');
     onCapture(imageData);
   };
 
@@ -374,74 +617,167 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       if (ctx) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
-      
-      // Force MediaPipe to process the next frame with the new color
-      if (faceMeshRef.current && videoRef.current) {
-        faceMeshRef.current.send({ image: videoRef.current });
-      }
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      <div className="max-w-4xl w-full">
+      <div className="max-w-6xl w-full">
         <div className="retro-window">
           <div className="retro-titlebar flex items-center justify-between">
-            <span>Virtual Lip Filter</span>
+            <span>Fitting Lip Room</span>
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
-            {colorRecommendation && (
-              <div className="retro-card p-4 mb-4">
-                <p className="font-semibold">Your Recommended Color: {colorRecommendation.name}</p>
-                <p className="text-xs opacity-80">{colorRecommendation.description}</p>
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,480px)_1fr] gap-4 items-start">
+              {/* Left: Camera area (portrait) */}
+              <div className="retro-card p-3">
+                <div ref={cameraContainerRef} className="relative w-full aspect-square bg-black overflow-hidden">
+                  <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+                  <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
+                  <canvas ref={lipsCanvasRef} className="hidden" />
+                </div>
+                {message && (
+                  <div className="text-center text-red-600 mt-3 text-sm">{message}</div>
+                )}
               </div>
-            )}
 
+              {/* Right: Settings */}
+              <div className="space-y-4">
+                {colorRecommendation && (
+                  <div className="retro-card p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      {(() => {
+                        const recommendedItem = lipstickData.find(item => item.color === colorRecommendation.color);
+                        return recommendedItem?.swatchImage ? (
+                          <img 
+                            src={recommendedItem.swatchImage} 
+                            alt={recommendedItem.name}
+                            className="w-12 h-8 object-contain flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
+                        );
+                      })()}
+                      <div>
+                        <p className="font-semibold text-sm">Your Recommended Color:</p>
+                        <p className="font-bold">{colorRecommendation.name}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs opacity-80">{colorRecommendation.description}</p>
+                  </div>
+                )}                
+
+                <div className="retro-card p-4">
+                  <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
+                  <div className="grid grid-cols-4 gap-3 mb-3">
+                    {lipstickData.slice(0, -1).map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleColorSelect(item.color)}
+                        className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${selectedColor === item.color ? 'ring-3 ring-pink-400' : ''}`}
+                        title={item.name}
+                      >
+                        {item.lipImage ? (
+                          <img 
+                            src={item.lipImage} 
+                            alt={item.name}
+                            className="w-full h-16 object-cover"
+                          />
+                        ) : (
+                          <div 
+                            className="w-full h-16"
+                            style={{ backgroundColor: item.color }}
+                          />
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
+                          {item.name}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Selected Color:</span>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const selectedItem = lipstickData.find(item => item.color === selectedColor);
+                        return selectedItem?.swatchImage ? (
+                          <img 
+                            src={selectedItem.swatchImage} 
+                            alt={selectedItem.name}
+                            className="w-8 h-6 object-contain"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
+                        );
+                      })()}
+                      <span className="text-xs">
+                        {lipstickData.find(item => item.color === selectedColor)?.name || 'Custom Color'}
+                      </span>
+                    </div>
+                  </div>
+                </div>   
+                <div className="retro-card p-4 space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Untuk Keperluan Testing</h3>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Beauty Mode</h3>
+                    <button
+                      onClick={() => {
+                        setIsBeautyEnabled(!isBeautyEnabled);
+                        beautyEnabledRef.current = !isBeautyEnabled;
+                      }}
+                      className={`retro-btn text-sm ${isBeautyEnabled ? 'retro-btn-primary' : ''}`}
+                    >
+                      {isBeautyEnabled ? '✨ On' : 'Off'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Lighting Effect</h3>
+                      <span className="text-xs">{Math.round(opacityState * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={Math.round(opacityState * 100)}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value) / 100;
+                        setOpacityState(newValue);
+                        opacityRef.current = newValue;
+                      }}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Lipstick Opacity</h3>
+                      <span className="text-xs">{Math.round(lipstickOpacityState * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={Math.round(lipstickOpacityState * 100)}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value) / 100;
+                        setLipstickOpacityState(newValue);
+                        lipstickOpacityRef.current = newValue;
+                      }}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                </div>             
+              </div>
+            </div>
             {/* Controls */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-4 mb-2">
               <button onClick={stopCamera} disabled={!isRunning} className="retro-btn text-sm disabled:opacity-50">Stop Camera</button>
               <button onClick={capturePhoto} disabled={!isRunning} className="retro-btn retro-btn-primary text-sm disabled:opacity-50">📸 Capture & Continue</button>
-            </div>
-
-            {/* Camera */}
-            <div className="relative retro-card overflow-hidden mb-4">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto transform scale-x-[-1]" />
-              <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
-            </div>
-
-            {message && (
-              <div className="text-center text-red-600 mb-3 text-sm">{message}</div>
-            )}
-
-            {/* Swatches */}
-            <div className="retro-card p-4">
-              <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
-              <div className="grid grid-cols-8 gap-2 mb-3">
-                {lipstickColors.map((color, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleColorSelect(color)}
-                    className={`w-10 h-10 rounded-full retro-swatch transition-transform hover:scale-110 ${selectedColor === color ? 'ring-2 ring-pink-400' : ''}`}
-                    style={{ backgroundColor: color }}
-                    title={pantoneNames[index]}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Selected Color:</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
-                  <span className="text-xs">
-                    {pantoneNames[lipstickColors.indexOf(selectedColor)] || 'Custom Color'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center mt-4 text-xs opacity-80">
-              <p>Position your face in the camera view and the AI will apply lipstick automatically.</p>
-              <p className="mt-1">Tip: HTTPS (or localhost) is required for camera access.</p>
             </div>
           </div>
         </div>

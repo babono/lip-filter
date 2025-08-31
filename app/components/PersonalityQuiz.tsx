@@ -11,74 +11,74 @@ interface PersonalityQuizProps {
 const questions = [
   {
     id: 'outfitStyle',
-    question: 'First day, first impression to be made. What\'s your outfit style to work?',
+    question: 'Hari pertama ngantor, harus keren nih! Gimana outfit kerjamu hari ini?',
     options: [
       { value: 'bold', label: 'Bold', emoji: '🔥', codes: ['04', '05', '06'] },
-      { value: 'neutral', label: 'Neutral', emoji: '⚖️', codes: ['02', '08'] },
+      { value: 'neutral', label: 'Netral', emoji: '⚖️', codes: ['02', '08'] },
       { value: 'soft', label: 'Soft', emoji: '🌸', codes: ['01', '03', '07'] }
     ]
   },
   {
     id: 'priorityList',
-    question: 'You finally going to enter your workplace. What\'s on your priority list today?',
+    question: 'OK, sekarang kamu udah masuk tempat kerja. Di list kerjaanmu, prioritasnya apa nih?',
     options: [
-      { value: 'presentation', label: 'Presentation pitch to CEO', emoji: '📊', codes: ['04', '05', '06'] },
-      { value: 'daily', label: 'Nothing much, just daily diddle', emoji: '☕', codes: ['02', '08'] },
-      { value: 'meeting', label: 'First timer so... meeting up with seniors?', emoji: '👥', codes: ['01', '03', '07'] }
+      { value: 'presentation', label: 'Presentasi ke CEO', emoji: '📊', codes: ['04', '05', '06'] },
+      { value: 'daily', label: 'Hmm lagi selo aja si hari ini', emoji: '☕', codes: ['02', '08'] },
+      { value: 'meeting', label: 'Pertama kali banget, jadi… meeting sama lead-ku', emoji: '👥', codes: ['01', '03', '07'] }
     ]
   },
   {
     id: 'handleMistake',
-    question: 'Oopsie, you made a little mistake. Now, how would you handle it?',
+    question: 'Duh, ternyata kamu bikin kesalahan kecil… Hmm, baiknya gimana ya?',
     options: [
-      { value: 'admit', label: 'Let\'s just admit it and solve it soon', emoji: '💪', codes: ['04', '05', '06'] },
-      { value: 'ask', label: 'Perhaps, asking for opinion would be better', emoji: '🤔', codes: ['02', '08'] },
-      { value: 'tomorrow', label: 'Maybe not today, maybe tomorrow', emoji: '😅', codes: ['01', '03', '07'] }
+      { value: 'admit', label: 'Cepetan ngaku aja de biar cepet selesai', emoji: '💪', codes: ['04', '05', '06'] },
+      { value: 'ask', label: 'Better keknya nanya temen kali yaa', emoji: '🤔', codes: ['02', '08'] },
+      { value: 'tomorrow', label: 'Duh, ga hari ini deh… besok aja bisa ga?', emoji: '😅', codes: ['01', '03', '07'] }
     ]
   },
   {
     id: 'lunchChoice',
-    question: 'Lunch time is coming. What would you eat today?',
+    question: 'Udah deket waktunya makan siang. Makan apa yak…',
     options: [
-      { value: 'spicy', label: 'That super-spicy nasgor sounds tempting', emoji: '🌶️', codes: ['04', '05', '06'] },
-      { value: 'sandwich', label: 'Easy sandwich to get-go', emoji: '🥪', codes: ['02', '08'] },
-      { value: 'homemade', label: 'Lunch-box made by myself', emoji: '🍱', codes: ['01', '03', '07'] }
+      { value: 'spicy', label: 'Nasi goreng extra pedes enak sih pasti', emoji: '🌶️', codes: ['04', '05', '06'] },
+      { value: 'sandwich', label: 'Sandwich aja deh yang cepet', emoji: '🥪', codes: ['02', '08'] },
+      { value: 'homemade', label: 'Bawa bekel dari rumah', emoji: '🍱', codes: ['01', '03', '07'] }
     ]
   },
   {
     id: 'girlieBoss',
-    question: 'Dream on! What kind of girlie boss you will be?',
+    question: 'Halu duluuu! Kira-kira, kamu bakal jadi girlie boss yang model gimana?',
     options: [
-      { value: 'strong', label: 'The strong, stand-out one with fiery will', emoji: '👑', codes: ['04', '05', '06'] },
-      { value: 'mingle', label: 'Mingle and fun discussion is a must!', emoji: '💬', codes: ['02', '08'] },
-      { value: 'kind', label: 'Kindness and thoughtful is a win for me', emoji: '💝', codes: ['01', '03', '07'] }
+      { value: 'strong', label: 'Yang strong, stand-out, berani!', emoji: '👑', codes: ['04', '05', '06'] },
+      { value: 'mingle', label: 'Harus seru dan deket sama semua tim', emoji: '💬', codes: ['02', '08'] },
+      { value: 'kind', label: 'Baik dan diem-diem thoughtful ke semua orang', emoji: '💝', codes: ['01', '03', '07'] }
     ]
   },
   {
     id: 'skinTone',
-    question: 'Embrace your shade. What\'s your skin tone?',
+    question: 'Warna kulitmu adalah warna dirimu. What’s your skin tone?',
     options: [
       { value: 'warm', label: 'Warm', emoji: '🤎', codes: ['01', '06', '08'] },
-      { value: 'neutral', label: 'Neutral', emoji: '🤍', codes: ['02', '07'] },
+      { value: 'neutral', label: 'Netral', emoji: '🤍', codes: ['02', '07'] },
       { value: 'cool', label: 'Cool', emoji: '🫒', codes: ['03', '04', '05'] }
     ]
   },
   {
     id: 'accessories',
-    question: 'Little sparkles would add some vibe, obvi. Which accessories suit you most?',
+    question: 'Pake something sparkling biar beda deh. Warna aksesoris yang cocok buat kamu apa?',
     options: [
-      { value: 'gold', label: 'Gold and gold', emoji: '✨', codes: ['01', '06', '08'] },
-      { value: 'both', label: 'I can do both', emoji: '💫', codes: ['02', '07'] },
-      { value: 'silver', label: 'Silver hits best', emoji: '⚡', codes: ['03', '04', '05'] }
+      { value: 'gold', label: 'Gold warna aku banget!', emoji: '✨', codes: ['01', '06', '08'] },
+      { value: 'both', label: 'Bisa banget si dua-duanya', emoji: '💫', codes: ['02', '07'] },
+      { value: 'silver', label: 'Silver match sama akuu', emoji: '⚡', codes: ['03', '04', '05'] }
     ]
   },
   {
     id: 'workspace',
-    question: 'Let\'s decorate our workspace! Which one is your fave?',
+    question: 'Dekor area kerja yuk biar makin nyaman <3 apa yang harus ada di meja kerjamu?',
     options: [
-      { value: 'heels', label: 'Extra pair of red heels & perfume', emoji: '👠', codes: ['01', '06', '08'] },
-      { value: 'coffee', label: 'My coffee tumbler & simple mirror', emoji: '☕', codes: ['02', '07'] },
-      { value: 'plushie', label: 'Comfy pastel plushie & reed diffusers', emoji: '🧸', codes: ['03', '04', '05'] }
+      { value: 'heels', label: 'Extra heels merah buat jaga-jaga & parfum', emoji: '👠', codes: ['01', '06', '08'] },
+      { value: 'coffee', label: 'Coffee tumbler & cermin mini buat touch-up', emoji: '☕', codes: ['02', '07'] },
+      { value: 'plushie', label: 'Bantal empuk & diffusers biar nyaman', emoji: '🧸', codes: ['03', '04', '05'] }
     ]
   }
 ];
@@ -167,13 +167,13 @@ export default function PersonalityQuiz({ onComplete, onBack }: PersonalityQuizP
       <div className="max-w-2xl w-full">
         <div className="retro-window">
           <div className="retro-titlebar flex items-center justify-between">
-            <span>Which lipstick suits you best?</span>
+            <span>Pilih yang cocok denganmu nih!</span>
             <button onClick={onBack} className="retro-btn text-xs">◀ Back</button>
           </div>
           <div className="retro-content">
             <div className="text-center mb-4">
               <h1 className="text-xl font-bold mb-1" style={{ fontFamily: 'var(--font-retro), system-ui' }}>Personality Quiz</h1>
-              <p className="text-xs opacity-70">Question {currentQuestion + 1} of {questions.length}</p>
+              <p className="text-xs opacity-70">Pertanyaan {currentQuestion + 1} dari {questions.length}</p>
             </div>
 
             {/* Progress */}
