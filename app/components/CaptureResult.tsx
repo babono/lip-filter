@@ -76,32 +76,91 @@ export default function CaptureResult({
   const downloadCard = async () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const serializer = new XMLSerializer();
-    const svgString = serializer.serializeToString(svg);
-    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-    const img = new Image();
-    // Improve rendering for cross-origin data URLs
-    img.crossOrigin = 'anonymous';
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to render SVG'));
-      img.src = svgDataUrl;
-    });
-    const width = svg.viewBox.baseVal.width || svg.width.baseVal.value || 900;
-    const height = svg.viewBox.baseVal.height || svg.height.baseVal.value || 1400;
-    const canvas = document.createElement('canvas');
-    const scale = 2; // export at 2x for better quality
-    canvas.width = Math.round(width * scale);
-    canvas.height = Math.round(height * scale);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `lip-id-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`;
-    link.href = dataUrl;
-    link.click();
+    
+    // Helper function to convert image to data URL
+    const imageToDataUrl = (src: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL());
+        };
+        img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+        img.src = src;
+      });
+    };
+
+    try {
+      // Clone the SVG to avoid modifying the original
+      const svgClone = svg.cloneNode(true) as SVGSVGElement;
+      
+      // Convert all image elements to data URLs
+      const images = svgClone.querySelectorAll('image');
+      for (const imageEl of images) {
+        const href = imageEl.getAttribute('href');
+        if (href && !href.startsWith('data:')) {
+          try {
+            const dataUrl = await imageToDataUrl(href);
+            imageEl.setAttribute('href', dataUrl);
+          } catch (error) {
+            console.warn(`Failed to convert image ${href} to data URL:`, error);
+          }
+        }
+      }
+
+      // Add font definitions to the SVG
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = `
+        text {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+      `;
+      defs.appendChild(style);
+      svgClone.insertBefore(defs, svgClone.firstChild);
+
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgClone);
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to render SVG'));
+        img.src = svgDataUrl;
+      });
+
+      const width = svg.viewBox.baseVal.width || svg.width.baseVal.value || 900;
+      const height = svg.viewBox.baseVal.height || svg.height.baseVal.value || 1400;
+      const canvas = document.createElement('canvas');
+      const scale = 2; // export at 2x for better quality
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      const link = document.createElement('a');
+      link.download = `lip-id-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Failed to download card:', error);
+      alert('Failed to download the card. Please try again.');
+    }
   };
 
   if (!capturedImage) {
@@ -150,7 +209,7 @@ export default function CaptureResult({
                     {/* Vertical band - adjusted for new dimensions */}
                     <rect x={W-140} y={60} width="100" height={H-120} rx="8" fill="#C17B86" />
                     <g transform={`translate(${W-110}, ${H/2 - 10}) rotate(-270)`}>
-                      <text x="0" y="0" fontSize="60" letterSpacing="6" fontWeight="400" textAnchor="middle" fill="#FFFFFF">
+                      <text x="0" y="0" fontSize="60" letterSpacing="6" fontWeight="400" textAnchor="middle" fill="#FFFFFF" fontFamily="Arial, sans-serif">
                         HYPERLAST GLAZED LIP VINYL
                       </text>
                     </g>
@@ -167,12 +226,12 @@ export default function CaptureResult({
                     <rect x="40" y="200" width={W-240} height={W-240} fill="none" stroke="#EBD3DA" strokeWidth="6" />
 
                     {/* Title - Enlarged */}
-                    <text x="40" y={100 + (W-120) + 60} fontSize="64" fontWeight="700" fill="#A35566">Unbreakable Glaze</text>
+                    <text x="40" y={100 + (W-120) + 60} fontSize="64" fontWeight="700" fill="#A35566" fontFamily="Arial, sans-serif">Unbreakable Glaze</text>
 
                     {/* Shade and swatch - Enlarged */}
                     <g transform={`translate(40, ${100 + (W-130) + 130})`}>
-                      <text x="0" y="0" fontSize="32" fill="#B08996">Shade</text>
-                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33">{shadeName}</text>
+                      <text x="0" y="0" fontSize="32" fill="#B08996" fontFamily="Arial, sans-serif">Shade</text>
+                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33" fontFamily="Arial, sans-serif">{shadeName}</text>
                       {(() => {
                         const recommendedItem = lipstickData.find(item => item.color === shadeHex);
                         return recommendedItem?.swatchImage ? (
@@ -192,8 +251,8 @@ export default function CaptureResult({
 
                     {/* Date row - Enlarged */}
                     <g transform={`translate(40, ${100 + (W-140) + 250})`}>
-                      <text x="0" y="0" fontSize="32" fill="#B08996">Date</text>
-                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33">{todayLabel}</text>
+                      <text x="0" y="0" fontSize="32" fill="#B08996" fontFamily="Arial, sans-serif">Date</text>
+                      <text x="0" y="56" fontSize="44" fontWeight="700" fill="#3D2E33" fontFamily="Arial, sans-serif">{todayLabel}</text>
                     </g>
 
                     {/* Brand Logo */}
