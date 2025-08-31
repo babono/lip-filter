@@ -1,13 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, RefObject } from 'react';
 import { ColorRecommendation } from '../page';
-import { FaceLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { FaceLandmarker, FilesetResolver, DrawingUtils, NormalizedLandmark, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
 interface LipFilterProps {
   colorRecommendation: ColorRecommendation | null;
   onCapture: (imageData: string) => void;
   onBack: () => void;
+}
+
+interface FrameRef {
+  anim: number;
+  isVideo: boolean;
 }
 
 // Only the 8 Pantone colors from the requirements
@@ -57,13 +62,41 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   const drawUtilsRef = useRef<DrawingUtils>(null);
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
-  const animationFrameRef = useRef<number|null>(null);
+  const detectFrameRef = useRef<FrameRef>({anim: 0, isVideo: false});
+  const animRenderCanvasRef = useRef<FrameRef>({anim: 0, isVideo: false});
+  const faceLandmarkResult = useRef<FaceLandmarkerResult|null>(null);
+  const IS_SUPPORTED_VIDEO_FRAME = useRef(false);
+
+  function cancelAnimFrame({anim, isVideo}: FrameRef) {
+    if (isVideo) {
+      videoRef.current?.cancelVideoFrameCallback(anim);
+      return;
+    }
+
+    cancelAnimationFrame(anim);
+  }
+
+  function requestAnimFrame(ref: RefObject<FrameRef>, callback: () => void) {
+    if (IS_SUPPORTED_VIDEO_FRAME.current && videoRef.current) {
+      ref.current.isVideo = true;
+      ref.current.anim = videoRef.current.requestVideoFrameCallback(callback);
+    } else {
+      ref.current.isVideo = false;
+      ref.current.anim = requestAnimationFrame(callback);
+    }
+  }
 
   // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (detectFrameRef.current.anim) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        cancelAnimFrame(detectFrameRef.current);
+      }
+
+      if (animRenderCanvasRef.current.anim) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        cancelAnimFrame(animRenderCanvasRef.current);
       }
     };
   }, []);
@@ -85,6 +118,18 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
           outputFaceBlendshapes: false,
           outputFacialTransformationMatrixes: false,
         });
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (video) {
+          video.style.display = 'none';
+        }
+
+        if (canvas) {
+          canvas.style.position = 'relative';
+        }
+
+        IS_SUPPORTED_VIDEO_FRAME.current = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 
         setIsInitialized(true);
         const ctx = canvasRef.current?.getContext('2d');
@@ -129,7 +174,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   useEffect(() => {
     if (isRunning && isInitialized) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
+      requestAnimFrame(detectFrameRef, detectFace);
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
     }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -312,37 +358,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   };
 
   const lastProcessedTimeRef = useRef<number>(0);
-  const frameCountRef = useRef<number>(0);
 
-  // No cache needed, calculating dimensions on demand is fast enough
-  const detectFace = async () => {
-    if (!videoRef.current || !faceLandmarkerRef.current || !canvasRef.current || !isRunning) {
-      return;
-    }
-
+  const renderCanvas = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const detector = faceLandmarkerRef.current;
-    const ctx = canvas.getContext('2d', { alpha: true });
+    const ctx = canvas?.getContext('2d', { alpha: true });
 
-    // Process every 3rd frame to reduce load
-    frameCountRef.current = (frameCountRef.current + 1) % 3;
-    if (frameCountRef.current !== 0 || !ctx) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
-      return;
-    }
-
-    // Skip if video isn't ready
-    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
-      return;
-    }
-
-    // Throttle frame processing to ~30fps
-    const currentTimestamp = Date.now();
-    const timeSinceLastProcess = currentTimestamp - lastProcessedTimeRef.current;
-    if (timeSinceLastProcess < 33) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
+    if (!ctx || !canvas || !video) {
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
       return;
     }
 
@@ -352,25 +375,11 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     // draw webcam
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(video, 0,0, canvas.width, canvas.height);
-    
 
-    try {
-      
-      const results = detector.detectForVideo(video, currentTimestamp);
-      const landmarks = results?.faceLandmarks?.[0];
-
-      if (ctx) {
-        if (landmarks) {
-          ctx.globalCompositeOperation = 'multiply';
-          renderLips(ctx, landmarks, canvas.width, canvas.height);
-        } 
-      }
-
-      lastProcessedTimeRef.current = currentTimestamp;
-    } catch (error) {
-      if (error instanceof Error && !error.message.includes('timestamp mismatch')) {
-        console.error("Error during face detection:", error);
-      }
+    const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
+    if (landmarks) {
+      ctx.globalCompositeOperation = 'multiply';
+      renderLips(ctx, landmarks, canvas.width, canvas.height);
     }
 
     // whitening
@@ -380,7 +389,39 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     ctx.globalCompositeOperation = "source-over";
 
     if (isRunning) {
-      animationFrameRef.current = requestAnimationFrame(detectFace);
+      requestAnimFrame(animRenderCanvasRef, renderCanvas);
+    }
+  }
+
+  // No cache needed, calculating dimensions on demand is fast enough
+  const detectFace = async () => {
+    if (!videoRef.current || !faceLandmarkerRef.current || !canvasRef.current || !isRunning) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const detector = faceLandmarkerRef.current;
+
+    // Skip if video isn't ready
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      requestAnimFrame(detectFrameRef, detectFace);
+      return;
+    }
+
+    // Throttle frame processing to ~30fps
+    const currentTimestamp = Math.floor(performance.now());
+    
+    try {
+      faceLandmarkResult.current = detector.detectForVideo(video, currentTimestamp);
+      lastProcessedTimeRef.current = currentTimestamp;
+    } catch (error) {
+      if (error instanceof Error && !error.message.includes('timestamp mismatch')) {
+        console.error("Error during face detection:", error);
+      }
+    }
+
+    if (isRunning) {
+      requestAnimFrame(detectFrameRef, detectFace);
     }
   };
 
@@ -435,7 +476,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
         // Reset timing references and start detection
         lastProcessedTimeRef.current = 0;
-        animationFrameRef.current = requestAnimationFrame(detectFace);
+        requestAnimFrame(detectFrameRef, detectFace);
+        requestAnimFrame(animRenderCanvasRef, renderCanvas);
         
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
@@ -465,8 +507,12 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         }
       }
 
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (detectFrameRef.current.anim) {
+        cancelAnimFrame(detectFrameRef.current);
+      }
+
+      if (animRenderCanvasRef.current.anim) {
+        cancelAnimFrame(animRenderCanvasRef.current);
       }
 
       window.removeEventListener('resize', resizeCanvas);
