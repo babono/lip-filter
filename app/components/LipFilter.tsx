@@ -17,8 +17,17 @@ interface FrameRef {
   isVideo: boolean;
 }
 
+interface LipstickItem {
+  color: string;
+  name: string;
+  lipImage: string | null;
+  swatchImage: string | null;
+  description?: string;
+  isCustom?: boolean;
+}
+
 // Enhanced lipstick data with images
-const lipstickData = [
+const lipstickData: LipstickItem[] = [
   {
     color: '#BB5F43',
     name: 'Barely Peachy',
@@ -726,9 +735,9 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
     }
 
     // Notify parent about recommendation change if handler provided
-    const item = lipstickData.find(i => i.color === color) as (typeof lipstickData)[number] | undefined;
+    const item: LipstickItem | undefined = lipstickData.find(i => i.color === color);
     const name = item?.name || 'Custom Color';
-    const description = (item as any)?.description || 'Warna custom pilihanmu. Ekspresikan dirimu!';
+    const description = item?.description || 'Warna custom pilihanmu. Ekspresikan dirimu!';
     if (typeof window !== 'undefined' && (item || color)) {
       const rec: ColorRecommendation = { color, name, description };
       if (typeof onRecommendationChange === 'function') {
@@ -786,7 +795,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                 {(() => {
                   const item = lipstickData.find(i => i.color === selectedColor);
                   const displayName = item?.name || 'Custom Color';
-                  const displayDesc = (item as any)?.description || 'Warna custom pilihanmu. Ekspresikan dirimu!';
+                  const displayDesc = item?.description || 'Warna custom pilihanmu. Ekspresikan dirimu!';
                   const displayColor = selectedColor;
                   return (
                     <div className="retro-card retro-card-white p-6 text-center">
@@ -814,10 +823,12 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                   <h3 className="font-semibold mb-3">Coba Warna Lain</h3>
                   <div className="grid grid-cols-4 gap-3 mb-3">
                     {lipstickData.slice(0, -1).map((item, index) => {
-                      const isCustom = (item as any).isCustom === true;
+                      const isCustom = item.isCustom === true;
                       const isSelected = isCustom
                         ? ((): boolean => {
-                            const base = lipstickData.filter(i => !(i as any).isCustom && i.name !== 'None').map(i => i.color);
+                            const base = lipstickData
+                              .filter(i => !i.isCustom && i.name !== 'None')
+                              .map(i => i.color);
                             return selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
                           })()
                         : selectedColor === item.color;
@@ -853,7 +864,9 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                     })}
                   </div>
                   {(() => {
-                    const base = lipstickData.filter(i => !(i as any).isCustom && i.name !== 'None').map(i => i.color);
+                    const base = lipstickData
+                      .filter(i => !i.isCustom && i.name !== 'None')
+                      .map(i => i.color);
                     const isCustomSelected = selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
                     if (!isCustomSelected) return null;
                     return (
