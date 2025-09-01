@@ -784,7 +784,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                 )}
 
                 <div className="retro-card p-4">
-                  <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
+                  <h3 className="font-semibold mb-3">Coba Warna Lain</h3>
                   <div className="grid grid-cols-4 gap-3 mb-3">
                     {lipstickData.slice(0, -1).map((item, index) => {
                       const isCustom = (item as any).isCustom === true;
@@ -870,7 +870,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                   </div>
                 </div>
                 <div className="retro-card p-4 space-y-4">                  
-                  <div className="flex items-center justify-between mb-2">
+                  {/* <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold">Beauty Mode</h3>
                     <button
                       onClick={() => {
@@ -900,7 +900,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                       }}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                     />
-                  </div>
+                  </div> */}
 
                   <div>
                     <div className="flex items-center justify-between mb-2">

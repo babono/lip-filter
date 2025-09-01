@@ -85,14 +85,14 @@ const questions = [
 
 // Pantone color palette based on the provided chart
 const pantoneColors = {
-  '01': { color: '#BB5F43', name: 'Barely Peachy', description: 'A warm, natural peach that complements warm skin tones' },
-  '02': { color: '#BC494F', name: 'Coral Courage', description: 'A vibrant coral that adds energy and warmth' },
-  '03': { color: '#AA3E4C', name: 'Charming Pink', description: 'A sophisticated rose pink for elegant looks' },
-  '04': { color: '#B04A5A', name: 'Mauve Ambition', description: 'A dusty mauve that\'s both bold and refined' },
-  '05': { color: '#A4343A', name: 'Fiery Crimson', description: 'A powerful crimson for making a statement' },
-  '06': { color: '#8B4513', name: 'Mahogany Mission', description: 'A rich mahogany brown for sophisticated looks' },
-  '07': { color: '#A0522D', name: 'Rosewood Blaze', description: 'A warm rosewood that\'s both natural and elegant' },
-  '08': { color: '#A3473D', name: 'Brick Era', description: 'A deep brick red for timeless appeal' }
+  '01': { color: '#BB5F43', name: 'Barely Peachy', description: 'Peach hangat dan natural, cocok banget buat kulit warm kayak kamu!' },
+  '02': { color: '#BC494F', name: 'Coral Courage', description: 'Coral cerah yang bikin look kamu makin fresh dan semangat!' },
+  '03': { color: '#AA3E4C', name: 'Charming Pink', description: 'Pink rose yang elegan, pas banget buat tampil anggun.' },
+  '04': { color: '#B04A5A', name: 'Mauve Ambition', description: 'Mauve dusty yang bold tapi tetap classy, siap bikin kamu stand out.' },
+  '05': { color: '#A4343A', name: 'Fiery Crimson', description: 'Crimson merah yang powerful, cocok buat kamu yang suka jadi pusat perhatian.' },
+  '06': { color: '#8B4513', name: 'Mahogany Mission', description: 'Coklat mahogany yang deep, bikin look kamu makin classy dan mature.' },
+  '07': { color: '#A0522D', name: 'Rosewood Blaze', description: 'Rosewood hangat, natural tapi tetap kelihatan elegan.' },
+  '08': { color: '#A3473D', name: 'Brick Era', description: 'Merah bata yang dalem, timeless banget buat semua suasana.' }
 };
 
 // Color recommendation logic based on quiz results
