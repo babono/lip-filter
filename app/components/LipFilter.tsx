@@ -869,10 +869,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                     </div>
                   </div>
                 </div>
-                <div className="retro-card p-4 space-y-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">Untuk Keperluan Testing</h3>
-                  </div>
+                <div className="retro-card p-4 space-y-4">                  
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold">Beauty Mode</h3>
                     <button
