@@ -775,7 +775,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                         );
                       })()}
                       <div className="text-left">
-                        <p className="font-semibold text-sm">Your Recommended Color:</p>
+                        <p className="font-semibold text-sm">Warna Kamu Adalah:</p>
                         <p className="font-bold text-lg">{colorRecommendation.name}</p>
                       </div>
                     </div>
