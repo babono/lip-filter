@@ -794,11 +794,13 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                             return selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
                           })()
                         : selectedColor === item.color;
+                      const tileColor = isCustom ? customHex : item.color;
                       return (
                         <button
                           key={index}
                           onClick={() => isCustom ? handleColorSelect(customHex) : handleColorSelect(item.color)}
-                          className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${isSelected ? 'ring-3 ring-pink-400' : ''}`}
+                          className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 border-2 ${isSelected ? 'ring-3 ring-pink-400' : ''}`}
+                          style={{ borderColor: tileColor }}
                           title={item.name}
                         >
                           {item.lipImage ? (
@@ -810,10 +812,13 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                           ) : (
                             <div
                               className="w-full h-16"
-                              style={{ backgroundColor: isCustom ? customHex : item.color }}
+                              style={{ backgroundColor: tileColor }}
                             />
                           )}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
+                          <div
+                            className="absolute bottom-0 left-0 right-0 text-white text-xs py-1 px-2 text-center"
+                            style={{ backgroundColor: tileColor }}
+                          >
                             {item.name}
                           </div>
                         </button>
