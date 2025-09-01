@@ -310,6 +310,116 @@ export default function CaptureResult({
                   <button onClick={onTryAgain} className="retro-btn">🎨 Coba Warna Lainnya</button>
                   <button onClick={onNewQuiz} className="retro-btn retro-btn-primary">🎯 Lakukan Quiz Lagi</button>
                 </div>
+
+                {/* Official Stores */}
+                <div className="retro-card p-4">
+                  <h3 className="font-semibold mb-3">Cek Official Stores PIXY</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a
+                      href="https://shopee.co.id/pixyindonesia"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn flex items-center justify-center gap-2 w-full"
+                      style={{ background: '#EE4D2D', color: '#ffffff' }}
+                    >
+                      <img src="https://cdn.simpleicons.org/shopee/FFFFFF" alt="Shopee" className="w-5 h-5" />
+                      <span>Shopee</span>
+                    </a>
+                    <a
+                      href="https://www.tokopedia.com/pixyofficial"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn flex items-center justify-center gap-2 w-full"
+                      style={{ background: '#42B549', color: '#ffffff' }}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 192 192"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path
+                          fill="#FFFFFF"
+                          fillRule="evenodd"
+                          d="M96 28c-9.504 0-17.78 5.307-22.008 13.127C82.736 42.123 88.89 44 96 47.332c7.11-3.332 13.264-5.209 22.008-6.205C113.781 33.31 105.506 28 96 28Zm0-12c-15.973 0-29.568 10.117-34.754 24.28C52.932 40 42.462 40 28.53 40H28a6 6 0 0 0-6 6v124a6 6 0 0 0 6 6h92c27.614 0 50-22.386 50-50V46a6 6 0 0 0-6-6h-.531c-13.931 0-24.401 0-32.715.28C125.566 26.113 111.97 16 96 16ZM34 52.001V164h86c20.987 0 38-17.013 38-38V52.001c-18.502.009-29.622.098-37.872.966-8.692.915-13.999 2.677-21.445 6.4a6 6 0 0 1-5.366 0c-7.446-3.723-12.753-5.485-21.445-6.4-8.25-.868-19.37-.957-37.872-.966ZM50 96c0-9.941 8.059-18 18-18s18 8.059 18 18-8.059 18-18 18-18-8.059-18-18Zm18-30c-16.569 0-30 13.431-30 30 0 16.569 13.431 30 30 30 1.126 0 2.238-.062 3.332-.183l20.425 20.426a6 6 0 0 0 8.486 0l20.425-20.426c1.094.121 2.206.183 3.332.183 16.569 0 30-13.431 30-30 0-16.569-13.431-30-30-30-12.764 0-23.666 7.971-28 19.207C91.666 73.971 80.764 66 68 66Zm40.082 55.433A30.1 30.1 0 0 1 96 106.793a30.101 30.101 0 0 1-12.082 14.64L96 133.515l12.082-12.082ZM124 78c-9.941 0-18 8.059-18 18s8.059 18 18 18 18-8.059 18-18-8.059-18-18-18ZM76 96a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm48 8a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>Tokopedia</span>
+                    </a>
+                    <a
+                      href="https://www.blibli.com/merchant/pixy-store/PTD-60083"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn flex items-center justify-center gap-2 w-full"
+                      style={{ background: '#0072FF', color: '#ffffff' }}
+                    >
+                      <img src="https://cdn.simpleicons.org/blibli/FFFFFF" alt="Blibli" className="w-5 h-5" />
+                      <span>Blibli</span>
+                    </a>
+                    <a
+                      href="https://www.lazada.co.id/shop/pixy1632881128"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn flex items-center justify-center gap-2 w-full"
+                      style={{ background: '#0F136A', color: '#ffffff' }}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 50.8 50.8"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path
+                          d="M28.048 14.434c1.041-.555 7.536-4.625 7.772-4.76.02-.012.509-.348 1.156.022.902.486 7.055 4.252 7.31 4.437.439.254.693.717.693 1.225v13.496a1.371 1.371 0 0 1-.786 1.11c-.578.323-15.89 9.936-17.995 11.092-.486.3-1.087.3-1.596.023-2.059-1.202-17.417-10.815-17.995-11.093a1.407 1.407 0 0 1-.786-1.132v-13.52c0-.484.254-.947.647-1.2l7.356-4.46c.37-.209.786-.232 1.156-.024.185.092 6.962 4.53 8.026 4.945 1.573.717 3.539.67 5.042-.161z"
+                          style={{ fill: 'none', stroke: '#FFFFFF', strokeWidth: 3.17491, strokeLinecap: 'butt', strokeLinejoin: 'round', strokeMiterlimit: 4 }}
+                        />
+                      </svg>
+                      <span>Lazada</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* PIXY Social Media */}
+                <div className="retro-card p-4">
+                  <h3 className="font-semibold mb-3">Stay Updated with PIXY</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <a
+                      href="https://wa.me/6281122301000"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn retro-btn-primary flex items-center justify-center w-full"
+                    >
+                      <img src="https://cdn.simpleicons.org/whatsapp/000000" alt="WhatsApp" className="w-5 h-5" />
+                    </a>
+                    <a
+                      href="https://www.pixy.co.id/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn retro-btn-primary flex items-center justify-center w-full"
+                    >
+                      <img src="/globe.svg" alt="Website" className="w-5 h-5" />
+                    </a>
+                    <a
+                      href="https://www.instagram.com/pixycosmetics"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn retro-btn-primary flex items-center justify-center w-full"
+                    >
+                      <img src="https://cdn.simpleicons.org/instagram/000000" alt="Instagram" className="w-5 h-5" />
+                    </a>
+                    <a
+                      href="https://www.facebook.com/PIXYIndonesiaOfficial"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="retro-btn retro-btn-primary flex items-center justify-center w-full"
+                    >
+                      <img src="https://cdn.simpleicons.org/facebook/000000" alt="Facebook" className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
