@@ -9,6 +9,7 @@ interface LipFilterProps {
   colorRecommendation: ColorRecommendation | null;
   onCapture: (imageData: string) => void;
   onBack: () => void;
+  onRecommendationChange?: (rec: ColorRecommendation) => void;
 }
 
 interface FrameRef {
@@ -22,49 +23,57 @@ const lipstickData = [
     color: '#BB5F43',
     name: 'Barely Peachy',
     lipImage: '/01-barely-peach-lip.jpg',
-    swatchImage: '/01-barely-peach-swatch.png'
+    swatchImage: '/01-barely-peach-swatch.png',
+    description: 'Peach hangat dan natural, cocok banget buat kulit warm kayak kamu!'
   },
   {
     color: '#BC494F',
     name: 'Coral Courage',
     lipImage: '/02-coral-courage-lip.jpg',
-    swatchImage: '/02-coral-courage-swatch.png'
+    swatchImage: '/02-coral-courage-swatch.png',
+    description: 'Coral cerah yang bikin look kamu makin fresh dan semangat!'
   },
   {
     color: '#AA3E4C',
     name: 'Charming Pink',
     lipImage: '/03-charming-pink-lip.jpg',
-    swatchImage: '/03-charming-pink-swatch.png'
+    swatchImage: '/03-charming-pink-swatch.png',
+    description: 'Pink rose yang elegan, pas banget buat tampil anggun.'
   },
   {
     color: '#B04A5A',
     name: 'Mauve Ambition',
     lipImage: '/04-mauve-ambition-lip.jpg',
-    swatchImage: '/04-mauve-ambition-swatch.png'
+    swatchImage: '/04-mauve-ambition-swatch.png',
+    description: 'Mauve dusty yang bold tapi tetap classy, siap bikin kamu stand out.'
   },
   {
     color: '#A4343A',
     name: 'Fiery Crimson',
     lipImage: '/05-fiercy-crimson-lip.jpg',
-    swatchImage: '/05-fiercy-crimson-swatch.png'
+    swatchImage: '/05-fiercy-crimson-swatch.png',
+    description: 'Crimson merah yang powerful, cocok buat kamu yang suka jadi pusat perhatian.'
   },
   {
     color: '#8B4513',
     name: 'Mahogany Mission',
     lipImage: '/06-mahogany-mission-lip.jpg',
-    swatchImage: '/06-mahogany-mission-swatch.png'
+    swatchImage: '/06-mahogany-mission-swatch.png',
+    description: 'Coklat mahogany yang deep, bikin look kamu makin classy dan mature.'
   },
   {
     color: '#A0522D',
     name: 'Rosewood Blaze',
     lipImage: '/07-rosewood-blaze-lip.jpg',
-    swatchImage: '/07-rosewood-blaze-swatch.png'
+    swatchImage: '/07-rosewood-blaze-swatch.png',
+    description: 'Rosewood hangat, natural tapi tetap kelihatan elegan.'
   },
   {
     color: '#A3473D',
     name: 'Brick Era',
     lipImage: '/08-brick-era-lip.jpg',
-    swatchImage: '/08-brick-era-swatch.png'
+    swatchImage: '/08-brick-era-swatch.png',
+    description: 'Merah bata yang dalem, timeless banget buat semua suasana.'
   },
   {
     color: '#FF66AA',
@@ -102,7 +111,7 @@ const MOUTH_INNER = [
 const START_BRIGHTNESS = 0.1;
 const START_LIPSTICK_OPACITY = 0.7; // 70% default opacity
 
-export default function LipFilter({ colorRecommendation, onCapture, onBack }: LipFilterProps) {
+export default function LipFilter({ colorRecommendation, onCapture, onBack, onRecommendationChange }: LipFilterProps) {
   const [selectedColor, setSelectedColor] = useState(colorRecommendation?.color || '#BB5F43');
   const [isRunning, setIsRunning] = useState(false);
   const [lipstickOpacityState, setLipstickOpacityState] = useState(START_LIPSTICK_OPACITY);
@@ -715,6 +724,17 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     }
+
+    // Notify parent about recommendation change if handler provided
+    const item = lipstickData.find(i => i.color === color) as (typeof lipstickData)[number] | undefined;
+    const name = item?.name || 'Custom Color';
+    const description = (item as any)?.description || 'Warna custom pilihanmu. Ekspresikan dirimu!';
+    if (typeof window !== 'undefined' && (item || color)) {
+      const rec: ColorRecommendation = { color, name, description };
+      if (typeof onRecommendationChange === 'function') {
+        onRecommendationChange(rec);
+      }
+    }
   };
 
   const handleCustomHexChange = (value: string) => {
@@ -729,6 +749,10 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       if (canvasRef.current) {
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+      const rec: ColorRecommendation = { color: v, name: 'Custom Color', description: 'Warna custom pilihanmu. Ekspresikan dirimu!' };
+      if (typeof onRecommendationChange === 'function') {
+        onRecommendationChange(rec);
       }
     } else {
       setCustomHexError('Use 6-digit hex like #A1B2C3');
@@ -759,29 +783,32 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
               {/* Right: Settings */}
               <div className="space-y-4">
-                {colorRecommendation && (
-                  <div className="retro-card retro-card-white p-6 text-center">
-                    <div className="flex items-center justify-center gap-4 mb-3">
-                      {(() => {
-                        const recommendedItem = lipstickData.find(item => item.color === colorRecommendation.color);
-                        return recommendedItem?.swatchImage ? (
+                {(() => {
+                  const item = lipstickData.find(i => i.color === selectedColor);
+                  const displayName = item?.name || 'Custom Color';
+                  const displayDesc = (item as any)?.description || 'Warna custom pilihanmu. Ekspresikan dirimu!';
+                  const displayColor = selectedColor;
+                  return (
+                    <div className="retro-card retro-card-white p-6 text-center">
+                      <div className="flex items-center justify-center gap-4 mb-3">
+                        {item?.swatchImage ? (
                           <img
-                            src={recommendedItem.swatchImage}
-                            alt={recommendedItem.name}
+                            src={item.swatchImage}
+                            alt={displayName}
                             className="w-14 h-10 object-contain flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
-                        );
-                      })()}
-                      <div className="text-left">
-                        <p className="font-semibold text-sm">Warna Kamu Adalah:</p>
-                        <p className="font-bold text-lg">{colorRecommendation.name}</p>
+                          <div className="w-10 h-10 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: displayColor }}></div>
+                        )}
+                        <div className="text-left">
+                          <p className="font-semibold text-sm">Warna Kamu Adalah:</p>
+                          <p className="font-bold text-lg">{displayName}</p>
+                        </div>
                       </div>
+                      <p className="text-sm opacity-80 max-w-md mx-auto">{displayDesc}</p>
                     </div>
-                    <p className="text-sm opacity-80 max-w-md mx-auto">{colorRecommendation.description}</p>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="retro-card p-4">
                   <h3 className="font-semibold mb-3">Coba Warna Lain</h3>

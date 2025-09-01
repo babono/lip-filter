@@ -87,6 +87,9 @@ export default function LipFilterApp() {
             colorRecommendation={appState.colorRecommendation}
             onCapture={handleCaptureComplete}
             onBack={() => navigateToScreen('quiz')}
+            onRecommendationChange={(rec) => {
+              setAppState(prev => ({ ...prev, colorRecommendation: rec }));
+            }}
           />
         );
       case 'result':
