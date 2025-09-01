@@ -67,6 +67,13 @@ const lipstickData = [
     swatchImage: '/08-brick-era-swatch.png'
   },
   {
+    color: '#FF66AA',
+    name: 'Custom Color',
+    lipImage: null,
+    swatchImage: null,
+    isCustom: true
+  },
+  {
     color: '#00000000',
     name: 'None',
     lipImage: null,
@@ -106,6 +113,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   const opacityRef = useRef(START_BRIGHTNESS); // For animation frame updates
   const [isBeautyEnabled, setIsBeautyEnabled] = useState(false);
   const beautyEnabledRef = useRef(false);
+  const [customHex, setCustomHex] = useState('#FF66AA');
+  const [customHexError, setCustomHexError] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -708,6 +717,24 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     }
   };
 
+  const handleCustomHexChange = (value: string) => {
+    let v = value.trim();
+    if (v && v[0] !== '#') v = '#' + v;
+    setCustomHex(v);
+    const hex6 = /^#([0-9a-fA-F]{6})$/;
+    if (hex6.test(v)) {
+      setCustomHexError('');
+      setSelectedColor(v);
+      currentColorRef.current = v;
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    } else {
+      setCustomHexError('Use 6-digit hex like #A1B2C3');
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="max-w-6xl w-full">
@@ -759,31 +786,63 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                 <div className="retro-card p-4">
                   <h3 className="font-semibold mb-3">Choose Lipstick Color</h3>
                   <div className="grid grid-cols-4 gap-3 mb-3">
-                    {lipstickData.slice(0, -1).map((item, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleColorSelect(item.color)}
-                        className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${selectedColor === item.color ? 'ring-3 ring-pink-400' : ''}`}
-                        title={item.name}
-                      >
-                        {item.lipImage ? (
-                          <img
-                            src={item.lipImage}
-                            alt={item.name}
-                            className="w-full h-16 object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="w-full h-16"
-                            style={{ backgroundColor: item.color }}
-                          />
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
-                          {item.name}
-                        </div>
-                      </button>
-                    ))}
+                    {lipstickData.slice(0, -1).map((item, index) => {
+                      const isCustom = (item as any).isCustom === true;
+                      const isSelected = isCustom
+                        ? ((): boolean => {
+                            const base = lipstickData.filter(i => !(i as any).isCustom && i.name !== 'None').map(i => i.color);
+                            return selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
+                          })()
+                        : selectedColor === item.color;
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => isCustom ? handleColorSelect(customHex) : handleColorSelect(item.color)}
+                          className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 ${isSelected ? 'ring-3 ring-pink-400' : ''}`}
+                          title={item.name}
+                        >
+                          {item.lipImage ? (
+                            <img
+                              src={item.lipImage}
+                              alt={item.name}
+                              className="w-full h-16 object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-16"
+                              style={{ backgroundColor: isCustom ? customHex : item.color }}
+                            />
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 text-center">
+                            {item.name}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
+                  {(() => {
+                    const base = lipstickData.filter(i => !(i as any).isCustom && i.name !== 'None').map(i => i.color);
+                    const isCustomSelected = selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
+                    if (!isCustomSelected) return null;
+                    return (
+                      <div className="mb-3">
+                        <label className="text-sm font-medium">Custom Hex Color</label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={customHex}
+                            onChange={(e) => handleCustomHexChange(e.target.value)}
+                            placeholder="#RRGGBB"
+                            className="flex-1 h-9 px-2 border rounded retro-input"
+                          />
+                          <div className="w-9 h-9 rounded border" style={{ backgroundColor: customHex }} />
+                        </div>
+                        {customHexError && (
+                          <p className="text-xs text-red-600 mt-1">{customHexError}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Selected Color:</span>
                     <div className="flex items-center gap-2">
