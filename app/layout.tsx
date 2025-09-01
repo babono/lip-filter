@@ -24,9 +24,36 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+// Resolve the site URL for absolute metadata (OG/Twitter)
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: "Lipstick Shades Finder Online",
-  description: "Virtual lipstick try-on app with various colors and textures",
+  metadataBase: new URL(siteUrl),
+  alternates: { canonical: "/" },
+  title: "Find Your Unbreakable Lip Shades - PIXY Hyperlast Glazed Lip Vinyl",
+  description: "Yuk, temukan shade dari PIXY Hyperlast Glazed Lip Vinyl yang paling cocok dengan kamu—dari visual based on skin tone sampai shades mapping, we\u2019ve got you covered!",
+  openGraph: {
+    title: "Find Your Unbreakable Lip Shades - PIXY Hyperlast Glazed Lip Vinyl",
+    description: "Yuk, temukan shade dari PIXY Hyperlast Glazed Lip Vinyl yang paling cocok dengan kamu—dari visual based on skin tone sampai shades mapping, we\u2019ve got you covered!",
+    type: "website",
+    url: "/",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "PIXY Hyperlast Glazed Lip Vinyl - Unbreakable Glaze",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Find Your Unbreakable Lip Shades - PIXY Hyperlast Glazed Lip Vinyl",
+    description: "Yuk, temukan shade dari PIXY Hyperlast Glazed Lip Vinyl yang paling cocok dengan kamu—dari visual based on skin tone sampai shades mapping, we\u2019ve got you covered!",
+    images: ["/opengraph-image.png"],
+  },
 };
 
 export default function RootLayout({
