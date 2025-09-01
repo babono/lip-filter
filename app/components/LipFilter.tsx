@@ -875,7 +875,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                       </div>
                     );
                   })()}
-                  <div className="flex items-center justify-between">
+                  {/* <div className="flex items-center justify-between">
                     <span className="text-sm">Selected Color:</span>
                     <div className="flex items-center gap-2">
                       {(() => {
@@ -894,7 +894,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                         {lipstickData.find(item => item.color === selectedColor)?.name || 'Custom Color'}
                       </span>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
                 <div className="retro-card p-4 space-y-4">                  
                   {/* <div className="flex items-center justify-between mb-2">
