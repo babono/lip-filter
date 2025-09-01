@@ -271,26 +271,26 @@ export default function CaptureResult({
               {/* Details and actions */}
               <div className="space-y-4">
                 {colorRecommendation && (
-                  <div className="retro-card p-4 text-center">
-                    <div className="flex items-center justify-center gap-3 mb-2">
+                  <div className="retro-card retro-card-white p-6 text-center">
+                    <div className="flex items-center justify-center gap-4 mb-3">
                       {(() => {
                         const recommendedItem = lipstickData.find(item => item.color === colorRecommendation.color);
                         return recommendedItem?.swatchImage ? (
                           <img 
                             src={recommendedItem.swatchImage} 
                             alt={recommendedItem.name}
-                            className="w-12 h-8 object-contain flex-shrink-0"
+                            className="w-14 h-10 object-contain flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
+                          <div className="w-10 h-10 rounded-full retro-swatch flex-shrink-0" style={{ backgroundColor: colorRecommendation.color }}></div>
                         );
                       })()}
                       <div className="text-left">
-                        <p className="font-semibold text-sm">Recommended Color:</p>
-                        <p className="font-bold">{colorRecommendation.name}</p>
+                        <p className="font-semibold text-sm">Your Recommended Color:</p>
+                        <p className="font-bold text-lg">{colorRecommendation.name}</p>
                       </div>
                     </div>
-                    <p className="text-xs opacity-80">{colorRecommendation.description}</p>
+                    <p className="text-sm opacity-80 max-w-md mx-auto">{colorRecommendation.description}</p>
                   </div>
                 )}
 

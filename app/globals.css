@@ -139,6 +139,11 @@ body {
   box-shadow: inset 1px 1px 0 var(--retro-border-light);
 }
 
+/* Simple white card variant for result sections */
+.retro-card-white {
+  background: #ffffff;
+}
+
 /* Top marquee bar */
 .top-marquee {
   position: fixed;
