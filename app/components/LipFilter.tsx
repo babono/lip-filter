@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useRef, useEffect, RefObject } from 'react';
@@ -108,8 +109,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lipsCanvasRef = useRef<HTMLCanvasElement>(null);
-  const highlightRef = useRef<HTMLCanvasElement>(null);
+  const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawUtilsRef = useRef<DrawingUtils>(null);
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const currentColorRef = useRef(colorRecommendation?.color || '#BB5F43');
@@ -239,10 +239,10 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
   }
 
   const resizeCanvas = () => {
-    if (!canvasRef.current || !lipsCanvasRef.current) return;
+    if (!canvasRef.current || !tempCanvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const lipsCanvas = lipsCanvasRef.current;
+    const tempCanvas = tempCanvasRef.current;
     const target = cameraContainerRef.current || canvas;
     const rect = target.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -250,8 +250,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
     // Set canvas size to match video display size exactly
     onResizeCanvas(canvas, rect.width, rect.height, dpr);
-    onResizeCanvas(lipsCanvas, rect.width, rect.height, dpr);
-    onResizeCanvas(highlightRef.current!, rect.width, rect.height, dpr);
+    onResizeCanvas(tempCanvas, rect.width, rect.height, dpr);
   };
 
   // Cardinal/Catmull-Rom spline to Path2D for smoother cupid's bow
@@ -281,10 +280,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     return path;
   };
 
-  const lerpPoints = (source: [number, number], target: [number, number], value: number = 0.5): [number, number] => {
-    return [ source[0] + (target[0] - source[0]) * value, source[1] + (target[1] - source[1]) * value ];
-  }
-
   // Offsets for letterboxed drawing area
   const getDrawOffsets = () => drawAreaRef.current;
 
@@ -313,7 +308,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
 
   const renderHighlight = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
     if (!landmarks) return;
-    
+    ctx.clearRect(0, 0, width, height);
     const { x: dx, y: dy } = getDrawOffsets();
 
     const [[ltx, lty], [ltx2,lty2], [cx1, cy1], [cx2, cy2], [llx, lly], [lrx, lry]] = [
@@ -324,7 +319,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     const lipTick = Math.sqrt((ltx2 - ltx) ** 2 + (lty2 - lty) ** 2) * 0.5;
     const p = [cx1 + (cx2-cx1) * 0.5, cy1 + (cy2-cy1) * 0.5];
 
-    if (lipTick < 1.2) {
+    if (lipTick < 1.3) {
       return;
     }
 
@@ -335,15 +330,16 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     // render
     ctx.save();
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.translate(p[0], p[1]);
+    ctx.translate(p[0], p[1] - lipTick * 0.2);
     ctx.rotate(angle);
-    const numLight = 8;
+    const numLight = 6;
+    const halfLip = numLight * 0.5;
     for(let i = 0; i < numLight; i++) {
-      const x = (Math.random() - 0.5) * lipTick * 1.8;
+      const x = (i - halfLip) * lipTick * 0.3;
       const y = (Math.random() - 0.5) * lipTick * 0.15;
       const w = Math.random() * lipTick * 1;
       const h = Math.random() * lipTick * 0.25;
-      const alpha = 0.05 + Math.random() * 0.35;
+      const alpha = 0.05 + Math.random() * 0.15;
 
       ctx.beginPath();
       ctx.ellipse(x,y, w, h, Math.random() * 0.01, 0, Math.PI * 2);
@@ -351,11 +347,15 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
       ctx.fill();
     }
     ctx.restore();
+
+    ctx.globalCompositeOperation = "source-over";
   };
 
   // Optimized renderer using even-odd fill and smoothing
   const renderLips = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
     if (!landmarks) return;
+    ctx.clearRect(0, 0, width, height);
+
     ctx.save();
 
     // Use a local array to avoid array creation in the loop
@@ -473,6 +473,8 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     ctx.restore();
 
     ctx.restore();
+
+    ctx.globalCompositeOperation = "source-over";
   };
 
   const lastProcessedTimeRef = useRef<number>(0);
@@ -481,10 +483,9 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    const lipsCtx = lipsCanvasRef.current?.getContext('2d', { alpha: true });
-    const highlightCtx = highlightRef.current?.getContext('2d', { alpha: true });
+    const tempCtx = tempCanvasRef.current?.getContext('2d', { alpha: true });
 
-    if (!highlightCtx || !lipsCtx || !ctx || !canvas || !video) {
+    if (!tempCtx || !ctx || !canvas || !video) {
       requestAnimFrame(animRenderCanvasRef, renderCanvas);
       return;
     }
@@ -518,21 +519,35 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
     }
 
     const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
-    lipsCtx.clearRect(0, 0, displayWidth, displayHeight);
-    highlightCtx.clearRect(0, 0, displayWidth, displayHeight);
+    tempCtx.clearRect(0, 0, displayWidth, displayHeight);
     if (landmarks && currentColorRef.current !== lipstickColors[NONE_INDEX]) {
-      lipsCtx.filter = 'blur(2px)';
+      tempCtx.filter = 'blur(2px)';
       const { width: dw, height: dh } = drawAreaRef.current;
       // renderDebug(ctx, landmarks, dw, dh);
-      renderLips(lipsCtx, landmarks, dw, dh);
+      renderLips(tempCtx, landmarks, dw, dh);
       ctx.globalCompositeOperation = 'overlay';
-      ctx.drawImage(lipsCanvasRef.current!, 0, 0, displayWidth, displayHeight);
+      ctx.drawImage(tempCanvasRef.current!, 0, 0, displayWidth, displayHeight);
 
-      highlightCtx.filter = 'blur(4px)';
-      renderHighlight(highlightCtx, landmarks, dw, dh);
+      tempCtx.filter = 'blur(4px)';
+      renderHighlight(tempCtx, landmarks, dw, dh);
       ctx.globalCompositeOperation = 'lighter';
-      ctx.drawImage(highlightRef.current!, 0, 0, displayWidth, displayHeight);
+      ctx.drawImage(tempCanvasRef.current!, 0, 0, displayWidth, displayHeight);
     }
+
+    if (beautyEnabledRef.current) {
+      tempCtx.filter = 'none';
+      tempCtx.clearRect(0, 0, displayWidth, displayHeight);
+      tempCtx.drawImage(canvas, 0, 0, displayWidth, displayHeight);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
+      ctx.filter = 'blur(1.25px)';
+      ctx.drawImage(tempCanvasRef.current!, 0, 0, displayWidth, displayHeight);
+      tempCtx.filter = 'none';
+    }
+    
+    
+    ctx.filter = 'none';
+     ctx.globalCompositeOperation = "source-over";
 
     if (isRunning) {
       requestAnimFrame(animRenderCanvasRef, renderCanvas);
@@ -708,8 +723,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack }: Li
                 <div ref={cameraContainerRef} className="relative w-full aspect-square bg-black overflow-hidden">
                   <video ref={videoRef} autoPlay playsInline muted className="hidden" />
                   <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none transform scale-x-[-1]" />
-                  <canvas ref={lipsCanvasRef} className="hidden" />
-                  <canvas ref={highlightRef} className="hidden" />
+                  <canvas ref={tempCanvasRef} className="hidden" />
                 </div>
                 {message && (
                   <div className="text-center text-red-600 mt-3 text-sm">{message}</div>
