@@ -103,6 +103,16 @@ export default function RootLayout({
             <video src="/video-ornament.mp4" className="block w-full h-auto" autoPlay muted loop playsInline />
           </div>
         </div>
+        {/* Powered by Arketipe - floating button */}
+        <a
+          href="https://www.arketipe.id/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 bg-[#3D3D3D] text-white rounded-full flex items-center gap-1 px-2.5 py-1 text-[10px] shadow-md opacity-90 hover:opacity-100"
+        >
+          <img src="/logo-arketipe.svg" alt="Arketipe" className="w-3 h-3" />
+          <span>Powered by Arketipe</span>
+        </a>
       </body>
     </html>
   );
