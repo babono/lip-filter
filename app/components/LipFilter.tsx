@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
@@ -352,7 +353,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
   // Offsets for letterboxed drawing area
   const getDrawOffsets = () => drawAreaRef.current;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const renderDebug = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
     if (!landmarks) return;
     ctx.save();
@@ -444,11 +444,28 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
 
     // Create paths with optimized point calculation
     const { x: dx, y: dy } = getDrawOffsets();
-
+    
+    // Calculate mouth center point for scaling
+    let mouthCenterX = 0, mouthCenterY = 0;
     for (let i = 0; i < MOUTH_OUTER.length; i++) {
+      mouthCenterX += landmarks[MOUTH_OUTER[i]].x;
+      mouthCenterY += landmarks[MOUTH_OUTER[i]].y;
+    }
+    mouthCenterX = (mouthCenterX / MOUTH_OUTER.length) * width + dx;
+    mouthCenterY = (mouthCenterY / MOUTH_OUTER.length) * height + dy;
+    
+    // Scaling factor for outer lips (1.n = n% larger)
+    const lipScaleFactor = 1.05;
+    
+    for (let i = 0; i < MOUTH_OUTER.length; i++) {
+      // Original point
+      const origX = landmarks[MOUTH_OUTER[i]].x * width + dx;
+      const origY = landmarks[MOUTH_OUTER[i]].y * height + dy;
+      
+      // Scale point outward from center
       outerPoints[i] = [
-        landmarks[MOUTH_OUTER[i]].x * width + dx,
-        landmarks[MOUTH_OUTER[i]].y * height + dy
+        mouthCenterX + (origX - mouthCenterX) * lipScaleFactor,
+        mouthCenterY + (origY - mouthCenterY) * lipScaleFactor
       ];
     }
     const smoothedOuter = smoothClosedPath(outerPoints);
