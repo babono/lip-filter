@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
@@ -167,6 +168,48 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
     }
   }
 
+  function multiplyHexOpacity(hex: string, factor: number): string {
+  hex = hex.replace(/^#/, "");
+
+  let r, g, b, a;
+
+  if (hex.length === 8) {
+    r = hex.slice(0, 2);
+    g = hex.slice(2, 4);
+    b = hex.slice(4, 6);
+    a = hex.slice(6, 8);
+  } else if (hex.length === 6) {
+    r = hex.slice(0, 2);
+    g = hex.slice(2, 4);
+    b = hex.slice(4, 6);
+    a = "FF"; // assume full opacity
+  } else if (hex.length === 4) {
+    // #RGBA shorthand
+    r = hex[0] + hex[0];
+    g = hex[1] + hex[1];
+    b = hex[2] + hex[2];
+    a = hex[3] + hex[3];
+  } else if (hex.length === 3) {
+    // #RGB shorthand
+    r = hex[0] + hex[0];
+    g = hex[1] + hex[1];
+    b = hex[2] + hex[2];
+    a = "FF";
+  } else {
+    throw new Error("Invalid hex format");
+  }
+
+  // Scale opacity
+  const alphaDecimal = parseInt(a, 16);
+  let newAlpha = Math.round(alphaDecimal * factor);
+
+  // Clamp between 0–255
+  newAlpha = Math.max(0, Math.min(255, newAlpha));
+
+  // Return in #RRGGBBAA format
+  return `#${r}${g}${b}${newAlpha.toString(16).padStart(2, "0")}`;
+}
+
   // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
@@ -310,7 +353,6 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
   // Offsets for letterboxed drawing area
   const getDrawOffsets = () => drawAreaRef.current;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const renderDebug = (ctx: CanvasRenderingContext2D, landmarks: NormalizedLandmark[], width: number, height: number) => {
     if (!landmarks) return;
     ctx.save();
@@ -392,19 +434,38 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
     // drawUtilsRef.current?.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LIPS, { color: "#FF0000" });
 
     // Pre-compute styles with dynamic opacity
-    const opacity = Math.round(lipstickOpacityRef.current * 255).toString(16).padStart(2, '0');
-    const strokeOpacity = Math.round(lipstickOpacityRef.current * 0.35 * 255).toString(16).padStart(2, '0');
+    const opacityFactor = lipstickOpacityRef.current; // 0% to 100%
+    const strokeOpacityFactor = lipstickOpacityRef.current * 0.35; // 35% of main opacity
 
-    const fillStyle = currentColorRef.current + opacity; // Dynamic opacity
-    const strokeStyle = currentColorRef.current + strokeOpacity; // 35% of main opacity
+    // const fillStyle = currentColorRef.current + opacity; // Dynamic opacity
+    // const strokeStyle = currentColorRef.current + strokeOpacity; // 35% of main opacity
+    const fillStyle = multiplyHexOpacity(currentColorRef.current, opacityFactor);
+    const strokeStyle = multiplyHexOpacity(currentColorRef.current, strokeOpacityFactor);
 
     // Create paths with optimized point calculation
     const { x: dx, y: dy } = getDrawOffsets();
-
+    
+    // Calculate mouth center point for scaling
+    let mouthCenterX = 0, mouthCenterY = 0;
     for (let i = 0; i < MOUTH_OUTER.length; i++) {
+      mouthCenterX += landmarks[MOUTH_OUTER[i]].x;
+      mouthCenterY += landmarks[MOUTH_OUTER[i]].y;
+    }
+    mouthCenterX = (mouthCenterX / MOUTH_OUTER.length) * width + dx;
+    mouthCenterY = (mouthCenterY / MOUTH_OUTER.length) * height + dy;
+    
+    // Scaling factor for outer lips (1.n = n% larger)
+    const lipScaleFactor = 1.05;
+    
+    for (let i = 0; i < MOUTH_OUTER.length; i++) {
+      // Original point
+      const origX = landmarks[MOUTH_OUTER[i]].x * width + dx;
+      const origY = landmarks[MOUTH_OUTER[i]].y * height + dy;
+      
+      // Scale point outward from center
       outerPoints[i] = [
-        landmarks[MOUTH_OUTER[i]].x * width + dx,
-        landmarks[MOUTH_OUTER[i]].y * height + dy
+        mouthCenterX + (origX - mouthCenterX) * lipScaleFactor,
+        mouthCenterY + (origY - mouthCenterY) * lipScaleFactor
       ];
     }
     const smoothedOuter = smoothClosedPath(outerPoints);
@@ -548,7 +609,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
     const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
     tempCtx.clearRect(0, 0, displayWidth, displayHeight);
     if (landmarks && currentColorRef.current !== lipstickColors[NONE_INDEX]) {
-      tempCtx.filter = 'blur(2px)';
+      tempCtx.filter = 'blur(6px)';
       const { width: dw, height: dh } = drawAreaRef.current;
       // renderDebug(ctx, landmarks, dw, dh);
       renderLips(tempCtx, landmarks, dw, dh);
