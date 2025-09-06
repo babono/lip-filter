@@ -883,23 +883,14 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                 <div className="retro-card p-4">
                   <h3 className="font-semibold mb-3">Coba Warna Lain</h3>
                   <div className="grid grid-cols-4 gap-3 mb-3">
-                    {lipstickData.slice(0, -1).map((item, index) => {
-                      const isCustom = item.isCustom === true;
-                      const isSelected = isCustom
-                        ? ((): boolean => {
-                            const base = lipstickData
-                              .filter(i => !i.isCustom && i.name !== 'None')
-                              .map(i => i.color);
-                            return selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
-                          })()
-                        : selectedColor === item.color;
-                      const tileColor = isCustom ? customHex : item.color;
+                    {lipstickData.slice(0, -2).map((item, index) => {
+                      const isSelected = selectedColor === item.color;
                       return (
                         <button
                           key={index}
-                          onClick={() => isCustom ? handleColorSelect(customHex) : handleColorSelect(item.color)}
+                          onClick={() => handleColorSelect(item.color)}
                           className={`relative rounded-lg overflow-hidden retro-swatch transition-transform hover:scale-105 border-2 ${isSelected ? 'ring-3 ring-pink-400' : ''}`}
-                          style={{ borderColor: tileColor }}
+                          style={{ borderColor: item.color }}
                           title={item.name}
                         >
                           {item.lipImage ? (
@@ -911,12 +902,12 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                           ) : (
                             <div
                               className="w-full h-16"
-                              style={{ backgroundColor: tileColor }}
+                              style={{ backgroundColor: item.color }}
                             />
                           )}
                           <div
                             className="absolute bottom-0 left-0 right-0 text-white text-xs py-1 px-2 text-center"
-                            style={{ backgroundColor: tileColor }}
+                            style={{ backgroundColor: item.color }}
                           >
                             {item.name}
                           </div>
@@ -924,104 +915,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
                       );
                     })}
                   </div>
-                  {(() => {
-                    const base = lipstickData
-                      .filter(i => !i.isCustom && i.name !== 'None')
-                      .map(i => i.color);
-                    const isCustomSelected = selectedColor !== lipstickColors[NONE_INDEX] && !base.includes(selectedColor);
-                    if (!isCustomSelected) return null;
-                    return (
-                      <div className="mb-3">
-                        <label className="text-sm font-medium">Custom Hex Color</label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={customHex}
-                            onChange={(e) => handleCustomHexChange(e.target.value)}
-                            placeholder="#RRGGBB"
-                            className="flex-1 h-9 px-2 border rounded retro-input"
-                          />
-                          <div className="w-9 h-9 rounded border" style={{ backgroundColor: customHex }} />
-                        </div>
-                        {customHexError && (
-                          <p className="text-xs text-red-600 mt-1">{customHexError}</p>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  {/* <div className="flex items-center justify-between">
-                    <span className="text-sm">Selected Color:</span>
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const selectedItem = lipstickData.find(item => item.color === selectedColor);
-                        return selectedItem?.swatchImage ? (
-                          <img
-                            src={selectedItem.swatchImage}
-                            alt={selectedItem.name}
-                            className="w-8 h-6 object-contain"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full retro-swatch" style={{ backgroundColor: selectedColor }}></div>
-                        );
-                      })()}
-                      <span className="text-xs">
-                        {lipstickData.find(item => item.color === selectedColor)?.name || 'Custom Color'}
-                      </span>
-                    </div>
-                  </div> */}
-                </div>
-                <div className="retro-card p-4 space-y-4">                  
-                  {/* <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">Beauty Mode</h3>
-                    <button
-                      onClick={() => {
-                        setIsBeautyEnabled(!isBeautyEnabled);
-                        beautyEnabledRef.current = !isBeautyEnabled;
-                      }}
-                      className={`retro-btn text-sm ${isBeautyEnabled ? 'retro-btn-primary' : ''}`}
-                    >
-                      {isBeautyEnabled ? '✨ On' : 'Off'}
-                    </button>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">Lighting Effect</h3>
-                      <span className="text-xs">{Math.round(opacityState * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={Math.round(opacityState * 100)}
-                      onChange={(e) => {
-                        const newValue = Number(e.target.value) / 100;
-                        setOpacityState(newValue);
-                        opacityRef.current = newValue;
-                      }}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div> */}
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">Lipstick Opacity</h3>
-                      <span className="text-xs">{Math.round(lipstickOpacityState * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={Math.round(lipstickOpacityState * 100)}
-                      onChange={(e) => {
-                        const newValue = Number(e.target.value) / 100;
-                        setLipstickOpacityState(newValue);
-                        lipstickOpacityRef.current = newValue;
-                      }}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-                </div>
+                </div>                
               </div>
             </div>
             {/* Controls */}
