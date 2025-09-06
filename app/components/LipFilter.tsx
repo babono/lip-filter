@@ -30,56 +30,56 @@ interface LipstickItem {
 // Enhanced lipstick data with images
 const lipstickData: LipstickItem[] = [
   {
-    color: '#d3735a5e',
+    color: '#d3735abd',
     name: 'Barely Peachy',
     lipImage: '/01-barely-peach-lip.jpg',
     swatchImage: '/01-barely-peach-swatch.png',
     description: 'Peach hangat dan natural, cocok banget buat kulit warm kayak kamu!'
   },
   {
-    color: '#c15f6487',
+    color: '#c15f64ff',
     name: 'Coral Courage',
     lipImage: '/02-coral-courage-lip.jpg',
     swatchImage: '/02-coral-courage-swatch.png',
     description: 'Coral cerah yang bikin look kamu makin fresh dan semangat!'
   },
   {
-    color: '#ac4c585c',
+    color: '#ac4c58b8',
     name: 'Charming Pink',
     lipImage: '/03-charming-pink-lip.jpg',
     swatchImage: '/03-charming-pink-swatch.png',
     description: 'Pink rose yang elegan, pas banget buat tampil anggun.'
   },
   {
-    color: '#b95a6747',
+    color: '#b95a678f',
     name: 'Mauve Ambition',
     lipImage: '/04-mauve-ambition-lip.jpg',
     swatchImage: '/04-mauve-ambition-swatch.png',
     description: 'Mauve dusty yang bold tapi tetap classy, siap bikin kamu stand out.'
   },
   {
-    color: '#7c213682',
+    color: '#7c2136ff',
     name: 'Fiery Crimson',
     lipImage: '/05-fiercy-crimson-lip.jpg',
     swatchImage: '/05-fiercy-crimson-swatch.png',
     description: 'Crimson merah yang powerful, cocok buat kamu yang suka jadi pusat perhatian.'
   },
   {
-    color: '#8b2b1e96',
+    color: '#8b2b1eff',
     name: 'Mahogany Mission',
     lipImage: '/06-mahogany-mission-lip.jpg',
     swatchImage: '/06-mahogany-mission-swatch.png',
     description: 'Coklat mahogany yang deep, bikin look kamu makin classy dan mature.'
   },
   {
-    color: '#9958665c',
+    color: '#995866b8',
     name: 'Rosewood Blaze',
     lipImage: '/07-rosewood-blaze-lip.jpg',
     swatchImage: '/07-rosewood-blaze-swatch.png',
     description: 'Rosewood hangat, natural tapi tetap kelihatan elegan.'
   },
   {
-    color: '#a0433766',
+    color: '#a04337cc',
     name: 'Brick Era',
     lipImage: '/08-brick-era-lip.jpg',
     swatchImage: '/08-brick-era-swatch.png',
