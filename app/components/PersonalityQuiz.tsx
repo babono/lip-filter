@@ -85,14 +85,14 @@ const questions = [
 
 // Pantone color palette based on the provided chart
 const pantoneColors = {
-  '01': { color: '#BB5F43', name: 'Barely Peachy', description: 'Peach hangat dan natural, cocok banget buat kulit warm kayak kamu!' },
-  '02': { color: '#BC494F', name: 'Coral Courage', description: 'Coral cerah yang bikin look kamu makin fresh dan semangat!' },
-  '03': { color: '#AA3E4C', name: 'Charming Pink', description: 'Pink rose yang elegan, pas banget buat tampil anggun.' },
-  '04': { color: '#B04A5A', name: 'Mauve Ambition', description: 'Mauve dusty yang bold tapi tetap classy, siap bikin kamu stand out.' },
-  '05': { color: '#A4343A', name: 'Fiery Crimson', description: 'Crimson merah yang powerful, cocok buat kamu yang suka jadi pusat perhatian.' },
-  '06': { color: '#8B4513', name: 'Mahogany Mission', description: 'Coklat mahogany yang deep, bikin look kamu makin classy dan mature.' },
-  '07': { color: '#A0522D', name: 'Rosewood Blaze', description: 'Rosewood hangat, natural tapi tetap kelihatan elegan.' },
-  '08': { color: '#A3473D', name: 'Brick Era', description: 'Merah bata yang dalem, timeless banget buat semua suasana.' }
+  '01': { color: '#d3735abd', name: 'Barely Peachy', description: 'Peach hangat dan natural, cocok banget buat kulit warm kayak kamu!' },
+  '02': { color: '#c15f64ff', name: 'Coral Courage', description: 'Coral cerah yang bikin look kamu makin fresh dan semangat!' },
+  '03': { color: '#ac4c58b8', name: 'Charming Pink', description: 'Pink rose yang elegan, pas banget buat tampil anggun.' },
+  '04': { color: '#b95a678f', name: 'Mauve Ambition', description: 'Mauve dusty yang bold tapi tetap classy, siap bikin kamu stand out.' },
+  '05': { color: '#7c2136ff', name: 'Fiery Crimson', description: 'Crimson merah yang powerful, cocok buat kamu yang suka jadi pusat perhatian.' },
+  '06': { color: '#8b2b1eff', name: 'Mahogany Mission', description: 'Coklat mahogany yang deep, bikin look kamu makin classy dan mature.' },
+  '07': { color: '#995866b8', name: 'Rosewood Blaze', description: 'Rosewood hangat, natural tapi tetap kelihatan elegan.' },
+  '08': { color: '#a04337cc', name: 'Brick Era', description: 'Merah bata yang dalem, timeless banget buat semua suasana.' }
 };
 
 // Color recommendation logic based on quiz results
