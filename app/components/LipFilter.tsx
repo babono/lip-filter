@@ -148,6 +148,23 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
   const drawAreaRef = useRef<{ x: number; y: number; width: number; height: number }>({ x: 0, y: 0, width: 0, height: 0 });
   const dprRef = useRef(1);
   const cameraContainerRef = useRef<HTMLDivElement>(null);
+  // Retouch offscreen canvases
+  const blurCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const retouchCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const blurCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const retouchCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const smoothedLandmarksRef = useRef<NormalizedLandmark[] | null>(null);
+
+  // Face / feature contour indices for masking (ordered loops)
+  const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
+  const LIPS_OUTER_CONTOUR = [61,146,91,181,84,17,314,405,321,375,291,61];
+  const LEFT_EYE = [33,7,163,144,145,153,154,155,133,33];
+  const RIGHT_EYE = [263,249,390,373,374,380,381,382,362,263];
+
+  // Retouch tweakable params
+  const RETOUCH_PARAMS = { featherPx: 8, blurPx: 6, strength: 0.6, sat: 1.05, bri: 1.05, smoothAlpha: 0.6 };
 
   function cancelAnimFrame({ anim, isVideo }: FrameRef) {
     if (isVideo) {
@@ -295,6 +312,9 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, isInitialized])
 
+  // Keep ref synced with state
+  useEffect(() => { beautyEnabledRef.current = isBeautyEnabled; }, [isBeautyEnabled]);
+
 
   const onResizeCanvas = (canvas: HTMLCanvasElement, width: number, height: number, dpr: number) => {
     canvas.width = Math.round(width * dpr);
@@ -321,6 +341,23 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
     // Set canvas size to match video display size exactly
     onResizeCanvas(canvas, rect.width, rect.height, dpr);
     onResizeCanvas(tempCanvas, rect.width, rect.height, dpr);
+
+    // Resize retouch offscreen canvases
+    const w = canvas.width; // already DPR adjusted
+    const h = canvas.height;
+    const ensure = (ref: React.MutableRefObject<HTMLCanvasElement | null>, ctxRef: React.MutableRefObject<CanvasRenderingContext2D | null>) => {
+      if (!ref.current) {
+        ref.current = document.createElement('canvas');
+        ctxRef.current = ref.current.getContext('2d');
+      }
+      if (ref.current && (ref.current.width !== w || ref.current.height !== h)) {
+        ref.current.width = w;
+        ref.current.height = h;
+      }
+    };
+    ensure(blurCanvasRef, blurCtxRef);
+    ensure(maskCanvasRef, maskCtxRef);
+    ensure(retouchCanvasRef, retouchCtxRef);
   };
 
   // Cardinal/Catmull-Rom spline to Path2D for smoother cupid's bow
@@ -597,16 +634,92 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
       ctx.drawImage(video, dx, dy, dw, dh);
     }
 
-    // Apply beauty effects if enabled
-    if (beautyEnabledRef.current) {
-      // whitening
-      ctx.globalCompositeOperation = "screen";
-      ctx.fillStyle = `rgba(255,255,255,${opacityRef.current * 0.5})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.globalCompositeOperation = "source-over";
+    const landmarksRaw = faceLandmarkResult.current?.faceLandmarks?.[0];
+
+    // Optional temporal smoothing (EMA) for stability
+    let landmarks: NormalizedLandmark[] | undefined;
+    if (landmarksRaw) {
+      if (!smoothedLandmarksRef.current) {
+        smoothedLandmarksRef.current = landmarksRaw.map(l => ({ ...l }));
+      } else if (smoothedLandmarksRef.current.length === landmarksRaw.length) {
+        const a = RETOUCH_PARAMS.smoothAlpha;
+        for (let i = 0; i < landmarksRaw.length; i++) {
+          const prev = smoothedLandmarksRef.current[i];
+          const curr = landmarksRaw[i]!;
+          prev.x = a * prev.x + (1 - a) * curr.x;
+          prev.y = a * prev.y + (1 - a) * curr.y;
+          if (typeof curr.z === 'number') prev.z = a * (prev.z ?? curr.z) + (1 - a) * curr.z;
+        }
+      }
+      landmarks = smoothedLandmarksRef.current;
     }
 
-    const landmarks = faceLandmarkResult.current?.faceLandmarks?.[0];
+    // Retouch pipeline (before lips) if enabled
+    if (beautyEnabledRef.current && landmarks) {
+      const blurCtx = blurCtxRef.current;
+      const maskCtx = maskCtxRef.current;
+      const retouchCtx = retouchCtxRef.current;
+      if (blurCtx && maskCtx && retouchCtx) {
+        const displayW = displayWidth;
+        const displayH = displayHeight;
+        const { featherPx, blurPx, strength, sat, bri } = RETOUCH_PARAMS;
+        const { x: dx, y: dy, width: dw, height: dh } = drawAreaRef.current;
+
+        // 1) Blurred / toned version (match cropping)
+        blurCtx.save();
+        blurCtx.clearRect(0,0,displayW,displayH);
+        blurCtx.filter = `blur(${blurPx}px) saturate(${sat}) brightness(${bri})`;
+        blurCtx.drawImage(video, dx, dy, dw, dh);
+        blurCtx.restore();
+
+        // Helper to convert landmark index to pixel (cropped space)
+        const lmToPx = (idx: number) => {
+          const p = landmarks![idx];
+          return [p.x * dw + dx, p.y * dh + dy] as [number, number];
+        };
+        const drawLoop = (c: CanvasRenderingContext2D, arr: number[]) => {
+          c.beginPath();
+          const [x0,y0] = lmToPx(arr[0]);
+          c.moveTo(x0,y0);
+          for (let i=1;i<arr.length;i++) {
+            const [x,y] = lmToPx(arr[i]);
+            c.lineTo(x,y);
+          }
+          c.closePath();
+        };
+
+        // 2) Build feathered mask (face oval minus eyes & lips)
+        maskCtx.save();
+        maskCtx.clearRect(0,0,displayW,displayH);
+        maskCtx.filter = `blur(${featherPx}px)`;
+        maskCtx.fillStyle = '#fff';
+        drawLoop(maskCtx, FACE_OVAL);
+        maskCtx.fill();
+        maskCtx.globalCompositeOperation = 'destination-out';
+        drawLoop(maskCtx, LIPS_OUTER_CONTOUR); maskCtx.fill();
+        drawLoop(maskCtx, LEFT_EYE); maskCtx.fill();
+        drawLoop(maskCtx, RIGHT_EYE); maskCtx.fill();
+        maskCtx.restore();
+
+        // 3) Apply mask to blurred layer
+        retouchCtx.save();
+        retouchCtx.clearRect(0,0,displayW,displayH);
+        retouchCtx.drawImage(blurCanvasRef.current!,0,0,displayW,displayH);
+        retouchCtx.globalCompositeOperation = 'destination-in';
+        retouchCtx.drawImage(maskCanvasRef.current!,0,0,displayW,displayH);
+        retouchCtx.restore();
+
+        // 4) Composite beneath lips
+        ctx.save();
+        try { ctx.globalCompositeOperation = 'soft-light'; } catch { ctx.globalCompositeOperation = 'lighter'; }
+        ctx.globalAlpha = strength;
+        ctx.drawImage(retouchCanvasRef.current!,0,0,displayW,displayH);
+        ctx.restore();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+
     tempCtx.clearRect(0, 0, displayWidth, displayHeight);
     if (landmarks && currentColorRef.current !== lipstickColors[NONE_INDEX]) {
       tempCtx.filter = 'blur(6px)';
@@ -622,18 +735,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
       ctx.drawImage(tempCanvasRef.current!, 0, 0, displayWidth, displayHeight);
     }
 
-    if (beautyEnabledRef.current) {
-      tempCtx.filter = 'none';
-      tempCtx.clearRect(0, 0, displayWidth, displayHeight);
-      tempCtx.drawImage(canvas, 0, 0, displayWidth, displayHeight);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.clearRect(0, 0, displayWidth, displayHeight);
-      ctx.filter = 'blur(1.25px)';
-      ctx.drawImage(tempCanvasRef.current!, 0, 0, displayWidth, displayHeight);
-      tempCtx.filter = 'none';
-    }
-    
-    
+  // Ensure normal blend after all
     ctx.filter = 'none';
      ctx.globalCompositeOperation = "source-over";
 
@@ -920,6 +1022,7 @@ export default function LipFilter({ colorRecommendation, onCapture, onBack, onRe
             </div>
             {/* Controls */}
             <div className="flex flex-wrap items-center justify-center gap-3 mt-4 mb-2">
+              <button onClick={() => setIsBeautyEnabled(v => !v)} className="retro-btn text-sm">{isBeautyEnabled ? 'Disable Retouch' : 'Enable Retouch'}</button>
               <button onClick={stopCamera} disabled={!isRunning} className="retro-btn text-sm disabled:opacity-50">Stop Camera</button>
               <button onClick={capturePhoto} disabled={!isRunning} className="retro-btn retro-btn-primary text-sm disabled:opacity-50">📸 Capture & Continue</button>
             </div>
