@@ -237,7 +237,10 @@ export default function CaptureResult({
       img.crossOrigin = 'anonymous';
       
       await new Promise<void>((resolve, reject) => {
-        let loadTimeout: ReturnType<typeof setTimeout>;
+        const loadTimeout = setTimeout(() => {
+          console.error('SVG image loading timed out');
+          reject(new Error('SVG image loading timed out'));
+        }, 10000);
         
         img.onload = () => {
           clearTimeout(loadTimeout);
@@ -250,12 +253,6 @@ export default function CaptureResult({
           console.error('Failed to render SVG:', error);
           reject(new Error('Failed to render SVG'));
         };
-        
-        // Set a timeout for image loading
-        loadTimeout = setTimeout(() => {
-          console.error('SVG image loading timed out');
-          reject(new Error('SVG image loading timed out'));
-        }, 10000);
         
         img.src = svgDataUrl;
       });
