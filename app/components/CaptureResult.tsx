@@ -108,42 +108,102 @@ export default function CaptureResult({
     const svg = svgRef.current;
     if (!svg) return;
     
-    // Helper function to convert image to data URL
+    // Helper function to convert image to data URL with proper error handling
     const imageToDataUrl = (src: string): Promise<string> => {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Failed to get canvas context'));
-            return;
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Failed to get canvas context'));
+              return;
+            }
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png', 1.0));
+          } catch (error) {
+            reject(error);
           }
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL());
         };
+        
+        img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+        img.src = src;
+      });
+    };
+
+    // Helper function to ensure image is fully loaded and rendered
+    const ensureImageLoaded = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          // Ensure image is fully decoded
+          if ('decode' in img && typeof img.decode === 'function') {
+            img.decode()
+              .then(() => resolve(img))
+              .catch(() => resolve(img)); // Fallback if decode fails
+          } else {
+            // Fallback for browsers without decode support
+            setTimeout(() => resolve(img), 50);
+          }
+        };
+        
         img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
         img.src = src;
       });
     };
 
     try {
+      // Collect all image sources from the SVG
+      const imageSources = [
+        capturedImage,
+        '/logo-pixy-pink.png',
+        matchedItem?.swatchImage
+      ].filter(Boolean) as string[];
+
+      console.log('Preloading images:', imageSources);
+
+      // Preload and ensure all images are fully loaded and decoded
+      const loadedImages = await Promise.allSettled(
+        imageSources.map(src => ensureImageLoaded(src))
+      );
+
+      // Log which images loaded successfully
+      loadedImages.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.warn(`Failed to load image ${imageSources[index]}:`, result.reason);
+        } else {
+          console.log(`Successfully loaded image ${imageSources[index]}`);
+        }
+      });
+
+      // Wait a bit more for WebKit to fully process the images
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Clone the SVG to avoid modifying the original
       const svgClone = svg.cloneNode(true) as SVGSVGElement;
       
-      // Convert all image elements to data URLs
+      // Convert all image elements to data URLs sequentially (not in parallel)
       const images = svgClone.querySelectorAll('image');
+      console.log(`Found ${images.length} image elements in SVG`);
+      
       for (const imageEl of images) {
         const href = imageEl.getAttribute('href');
         if (href && !href.startsWith('data:')) {
           try {
+            console.log(`Converting image to data URL: ${href}`);
             const dataUrl = await imageToDataUrl(href);
             imageEl.setAttribute('href', dataUrl);
+            console.log(`Successfully converted: ${href}`);
           } catch (error) {
             console.warn(`Failed to convert image ${href} to data URL:`, error);
+            // Keep the original href as fallback
           }
         }
       }
@@ -159,17 +219,49 @@ export default function CaptureResult({
       defs.appendChild(style);
       svgClone.insertBefore(defs, svgClone.firstChild);
 
+      // Alternative approach: Try using foreignObject with HTML for better WebKit compatibility
       const serializer = new XMLSerializer();
-      const svgString = serializer.serializeToString(svgClone);
+      let svgString = serializer.serializeToString(svgClone);
+      
+      // Ensure proper XML namespace
+      if (!svgString.includes('xmlns=')) {
+        svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      
+      console.log('SVG string length:', svgString.length);
+      
       const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
       
+      // Create image and wait for it to load completely
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      
       await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Failed to render SVG'));
+        let loadTimeout: ReturnType<typeof setTimeout>;
+        
+        img.onload = () => {
+          clearTimeout(loadTimeout);
+          console.log('SVG image loaded successfully');
+          resolve();
+        };
+        
+        img.onerror = (error) => {
+          clearTimeout(loadTimeout);
+          console.error('Failed to render SVG:', error);
+          reject(new Error('Failed to render SVG'));
+        };
+        
+        // Set a timeout for image loading
+        loadTimeout = setTimeout(() => {
+          console.error('SVG image loading timed out');
+          reject(new Error('SVG image loading timed out'));
+        }, 10000);
+        
         img.src = svgDataUrl;
       });
+
+      // Wait a bit more for rendering
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const width = svg.viewBox.baseVal.width || svg.width.baseVal.value || 900;
       const height = svg.viewBox.baseVal.height || svg.height.baseVal.value || 1400;
@@ -178,16 +270,30 @@ export default function CaptureResult({
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        throw new Error('Failed to get canvas context');
+      }
+      
+      // Enable image smoothing for better quality
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       
       ctx.scale(scale, scale);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      
+      console.log('Drawing image to canvas');
       ctx.drawImage(img, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/png');
+      
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      console.log('Canvas to dataURL complete');
       
       const link = document.createElement('a');
       link.download = `lip-id-${shadeName.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = dataUrl;
       link.click();
+      
+      console.log('Download initiated');
     } catch (error) {
       console.error('Failed to download card:', error);
       alert('Failed to download the card. Please try again.');
